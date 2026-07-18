@@ -1,0 +1,14 @@
+[
+  { "ParameterKey": "DemoMode", "ParameterValue": "true" },
+  { "ParameterKey": "CatalogTable", "ParameterValue": "adidlabs-catalog" },
+  { "ParameterKey": "BagTable", "ParameterValue": "adidlabs-bag" },
+  { "ParameterKey": "AgentCoreAgentArn", "ParameterValue": "" },
+  { "ParameterKey": "KbId", "ParameterValue": "" },
+  { "ParameterKey": "TavilyApiKey", "ParameterValue": "" },
+  { "ParameterKey": "LiteLlmImageUri", "ParameterValue": "" },
+  { "ParameterKey": "ArtifactsBucket", "ParameterValue": "" },
+  { "ParameterKey": "ApiCodeS3Key", "ParameterValue": "" },
+  { "ParameterKey": "ToolsCodeS3Key", "ParameterValue": "" },
+  { "ParameterKey": "LambdaMemoryMb", "ParameterValue": "256" },
+  { "ParameterKey": "LiteLlmMemoryMb", "ParameterValue": "1024" }
+]

@@ -1,0 +1,1359 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+# =============================================================================
+# AdidLaBs — one CloudFormation template for the durable serverless stack.
+#
+#   Concept demo — no affiliation with adidas AG. All products fictional.
+#
+# Region: ap-southeast-2 (Sydney). Deploy ONLY there — the two Bedrock APAC
+# cross-region inference-profile ARNs the LiteLLM role is scoped to are pinned
+# to ap-southeast-2.
+#
+# Naming / multi-stack safety: every resource that carries an explicit physical
+# name (IAM roles, Lambda functions, the HTTP API, the Cognito pool + client,
+# and the CloudFront OAC) is stack-scoped with ${AWS::StackName} so a SECOND
+# stack can coexist in ap-southeast-2 without a "name already exists"
+# CREATE_FAILED. The two DynamoDB table names are the one exception: they are
+# Parameters whose defaults are the contract-fixed literals adidlabs-catalog /
+# adidlabs-bag (the data/agents/tools code reads them from CATALOG_TABLE /
+# BAG_TABLE env, and the frontend contract names them). A second concurrent
+# stack overrides CatalogTable / BagTable — see those Parameters.
+#
+# What this template provisions (everything request-scoped or storage-priced —
+# nothing runs a clock, so idle cost is ~$0):
+#   * S3 site bucket (private) fronted by CloudFront using Origin Access Control
+#     (OAC — never legacy OAI). index.html is the default root object.
+#   * KB corpus S3 bucket (private) for the RAG markdown corpus (data/setup_kb.py
+#     ingests it into a Bedrock Knowledge Base over S3 Vectors, OUTSIDE CFN).
+#   * Cognito user pool + app client (email sign-up) — backs AgentCore Identity
+#     and authorizes the HTTP API via a JWT authorizer.
+#   * API Gateway HTTP API with a JWT authorizer (Cognito) and one Lambda per
+#     route: /api/session, /api/weather, /api/bag, /api/chat, /api/agents.
+#   * MCP tools Lambda (get_catalog/get_deals/bag_add/bag_get/
+#     search_lab_knowledge/search_web) — also hosts the FAISS-in-Lambda KB
+#     fallback (see infra/README.md).
+#   * LiteLLM Lambda (aws-lambda-web-adapter) behind a function URL with
+#     AuthType=AWS_IAM. Routes: nova-pro, haiku-4.5.
+#   * DynamoDB adidlabs-catalog (pk item_id) + adidlabs-bag (pk user_id,
+#     sk item_id), both PAY_PER_REQUEST.
+#   * Least-privilege IAM: bedrock:InvokeModel on EXACTLY the two apac inference
+#     profiles (LiteLLM role only); DynamoDB scoped to the two table ARNs;
+#     bedrock:Retrieve scoped to the KB; NO wildcards on resources.
+#
+# Circular-reference avoidance: the API/tools Lambdas receive LITELLM_URL and
+# AGENTCORE_AGENT_ARN as one-way values (a template Parameter for the ARN, and a
+# single Fn::GetAtt on the LiteLLM function URL). The LiteLLM function has no
+# dependency back on the API Lambdas, so there is no cycle.
+#
+# Code delivery: to keep `aws cloudformation deploy` (no separate `package`
+# step, as deploy.sh runs it) working out of the box, each Python Lambda ships
+# with an inline bootstrap handler (Code.ZipFile) that returns the real endpoint
+# shapes so the site works immediately in DEMO_MODE. To run the full sibling
+# implementations (backend/*.py, mcp-tools/server.py), stage their zips in S3
+# and pass ArtifactsBucket + the *S3Key parameters — the template then uses the
+# S3 code instead of the inline bootstrap. See infra/README.md ("Packaging").
+# =============================================================================
+
+Description: >-
+  AdidLaBs — weather-aware AI shopping demo (concept, no adidas affiliation).
+  S3+CloudFront (OAC), Cognito, HTTP API + Lambdas, LiteLLM Lambda (IAM function
+  URL), DynamoDB, least-privilege IAM. Region ap-southeast-2.
+
+# -----------------------------------------------------------------------------
+# Parameters
+# -----------------------------------------------------------------------------
+Parameters:
+  DemoMode:
+    Type: String
+    Default: "true"
+    AllowedValues: ["true", "false"]
+    Description: >-
+      Sets DEMO_MODE on the Lambdas. "true" makes /api/chat return the canned,
+      weather-matched stylist reply (no AgentCore call) so the demo works before
+      the agents deploy.
+
+  CatalogTable:
+    Type: String
+    Default: adidlabs-catalog
+    Description: >-
+      DynamoDB catalog table name (pk item_id). The contract default is the
+      fixed literal 'adidlabs-catalog' for the single demo stack. Table names
+      are account+region unique, so to stand up a SECOND concurrent stack in
+      ap-southeast-2 override this (e.g. adidlabs-catalog-${AWS::StackName})
+      to avoid a "table already exists" CREATE_FAILED — same reasoning as the
+      stack-scoped role/function names.
+
+  BagTable:
+    Type: String
+    Default: adidlabs-bag
+    Description: >-
+      DynamoDB bag table name (pk user_id, sk item_id). Contract default is the
+      fixed literal 'adidlabs-bag' for the single demo stack; override it for a
+      second concurrent stack in the same region (see CatalogTable).
+
+  AgentCoreAgentArn:
+    Type: String
+    Default: ""
+    Description: >-
+      ARN of the AgentCore Runtime orchestrator for POST /api/chat. AgentCore
+      Runtime is provisioned outside this template (agents module); leave empty
+      for the DEMO_MODE canned path, or pass the ARN post-provisioning. Passed
+      one-way into the chat Lambda env (AGENTCORE_AGENT_ARN) — no circular ref.
+
+  KbId:
+    Type: String
+    Default: ""
+    Description: >-
+      Bedrock Knowledge Base id (from data/setup_kb.py). The KB is created OUT
+      of band because Amazon S3 Vectors is preview and not a stable CFN resource
+      type. Empty at first deploy; deploy.sh pushes KB_ID onto the Lambdas after
+      setup_kb.py. Also scopes the tools role's bedrock:Retrieve grant.
+
+  TavilyApiKey:
+    Type: String
+    Default: ""
+    NoEcho: true
+    Description: Optional. Enables Tavily for search_web (else free ddgs/DuckDuckGo).
+
+  LiteLlmImageUri:
+    Type: String
+    Default: ""
+    Description: >-
+      Optional ECR image URI for the LiteLLM container (aws-lambda-web-adapter).
+      When set, the LiteLLM function uses PackageType=Image. When empty, the
+      function uses the inline zip bootstrap that serves the two routes'
+      OpenAI-compatible shape via boto3 bedrock-runtime (no container build
+      required for the demo). See infra/README.md.
+
+  ArtifactsBucket:
+    Type: String
+    Default: ""
+    Description: >-
+      Optional S3 bucket holding pre-built Lambda zips for the real sibling
+      implementations. When set together with the matching *S3Key parameter, a
+      function loads its code from S3 instead of the inline bootstrap.
+
+  ApiCodeS3Key:
+    Type: String
+    Default: ""
+    Description: S3 key of the backend API zip (session/weather/bag/chat/agents handlers + common/).
+
+  ToolsCodeS3Key:
+    Type: String
+    Default: ""
+    Description: S3 key of the mcp-tools zip (server.py + deps).
+
+  LambdaMemoryMb:
+    Type: Number
+    Default: 256
+    MinValue: 128
+    MaxValue: 3008
+    Description: Memory (MB) for the Python API/tools Lambdas.
+
+  LiteLlmMemoryMb:
+    Type: Number
+    Default: 1024
+    MinValue: 512
+    MaxValue: 3008
+    Description: Memory (MB) for the LiteLLM Lambda.
+
+# -----------------------------------------------------------------------------
+# Conditions
+# -----------------------------------------------------------------------------
+Conditions:
+  # A function uses S3 code when both the artifacts bucket and its key are set.
+  UseApiS3Code: !And
+    - !Not [!Equals [!Ref ArtifactsBucket, ""]]
+    - !Not [!Equals [!Ref ApiCodeS3Key, ""]]
+  UseToolsS3Code: !And
+    - !Not [!Equals [!Ref ArtifactsBucket, ""]]
+    - !Not [!Equals [!Ref ToolsCodeS3Key, ""]]
+  # LiteLLM runs as a container image only when an image URI is supplied.
+  UseLiteLlmImage: !Not [!Equals [!Ref LiteLlmImageUri, ""]]
+  # The chat Lambda only needs bedrock-agentcore:InvokeAgentRuntime once a real
+  # AgentCore Runtime ARN is configured (live path). Empty ARN = DEMO_MODE canned
+  # reply, which makes no AWS call, so the grant is omitted — tighter default.
+  HaveAgentArn: !Not [!Equals [!Ref AgentCoreAgentArn, ""]]
+
+# -----------------------------------------------------------------------------
+# Resources
+# -----------------------------------------------------------------------------
+Resources:
+
+  # ===========================================================================
+  # DynamoDB (PAY_PER_REQUEST — $0 idle)
+  # ===========================================================================
+  CatalogTableResource:
+    Type: AWS::DynamoDB::Table
+    # Demo tables are disposable — teardown.sh deletes the stack to reach $0.
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      TableName: !Ref CatalogTable
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: item_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: item_id
+          KeyType: HASH
+      Tags:
+        - { Key: app, Value: adidlabs }
+
+  BagTableResource:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      TableName: !Ref BagTable
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: user_id
+          AttributeType: S
+        - AttributeName: item_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: user_id
+          KeyType: HASH
+        - AttributeName: item_id
+          KeyType: RANGE
+      Tags:
+        - { Key: app, Value: adidlabs }
+
+  # ===========================================================================
+  # S3 — private site bucket + private KB corpus bucket
+  # ===========================================================================
+  SiteBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      BucketName: !Sub "adidlabs-site-${AWS::AccountId}-${AWS::Region}"
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault: { SSEAlgorithm: AES256 }
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      Tags:
+        - { Key: app, Value: adidlabs }
+
+  KbCorpusBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      BucketName: !Sub "adidlabs-kb-corpus-${AWS::AccountId}-${AWS::Region}"
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault: { SSEAlgorithm: AES256 }
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      Tags:
+        - { Key: app, Value: adidlabs }
+
+  # --- CloudFront Origin Access Control (OAC, never OAI) --------------------
+  SiteOAC:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        # OAC Name must be unique per AWS account. Include account + stack name so
+        # a second stack (even one sharing this region suffix) never collides.
+        # Every other named resource below follows the same stack-scoped pattern
+        # (roles/functions carry ${AWS::StackName}; see the header note) so two
+        # stacks can coexist in ap-southeast-2 without a name-collision CREATE_FAILED.
+        Name: !Sub "adidlabs-site-oac-${AWS::StackName}-${AWS::AccountId}-${AWS::Region}"
+        Description: OAC for the AdidLaBs private site bucket.
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  SiteDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Comment: AdidLaBs static site (concept demo, no adidas affiliation).
+        DefaultRootObject: index.html
+        # SPA: route 403/404 back to index.html so client-side state works.
+        CustomErrorResponses:
+          - { ErrorCode: 403, ResponseCode: 200, ResponsePagePath: /index.html, ErrorCachingMinTTL: 10 }
+          - { ErrorCode: 404, ResponseCode: 200, ResponsePagePath: /index.html, ErrorCachingMinTTL: 10 }
+        Origins:
+          - Id: site-s3-origin
+            DomainName: !GetAtt SiteBucket.RegionalDomainName
+            OriginAccessControlId: !GetAtt SiteOAC.Id
+            S3OriginConfig:
+              # Empty OriginAccessIdentity is required by CFN when using OAC.
+              OriginAccessIdentity: ""
+        DefaultCacheBehavior:
+          TargetOriginId: site-s3-origin
+          ViewerProtocolPolicy: redirect-to-https
+          Compress: true
+          AllowedMethods: [GET, HEAD, OPTIONS]
+          CachedMethods: [GET, HEAD]
+          # AWS managed CachingOptimized policy id (stable, global).
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+        PriceClass: PriceClass_100
+        HttpVersion: http2and3
+      Tags:
+        - { Key: app, Value: adidlabs }
+
+  # --- Bucket policy: allow ONLY this CloudFront distribution via OAC --------
+  SiteBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref SiteBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowCloudFrontOACRead
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub "${SiteBucket.Arn}/*"
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub "arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:distribution/${SiteDistribution.Id}"
+
+  # ===========================================================================
+  # Cognito — user pool + app client (email sign-up)
+  # ===========================================================================
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      UserPoolName: !Sub "adidlabs-users-${AWS::StackName}"
+      # "Join the lab" sign-up uses email as the username/alias.
+      UsernameAttributes: [email]
+      AutoVerifiedAttributes: [email]
+      MfaConfiguration: "OFF"
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: false
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireUppercase: true
+          RequireSymbols: false
+      Schema:
+        - { Name: email, AttributeDataType: String, Required: true, Mutable: true }
+      UserPoolTags:
+        app: adidlabs
+
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: !Sub "adidlabs-web-${AWS::StackName}"
+      UserPoolId: !Ref UserPool
+      # Public SPA client — no secret in the browser.
+      GenerateSecret: false
+      ExplicitAuthFlows:
+        - ALLOW_USER_SRP_AUTH
+        - ALLOW_USER_PASSWORD_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+      PreventUserExistenceErrors: ENABLED
+      SupportedIdentityProviders: [COGNITO]
+      AccessTokenValidity: 60
+      IdTokenValidity: 60
+      RefreshTokenValidity: 30
+      TokenValidityUnits:
+        AccessToken: minutes
+        IdToken: minutes
+        RefreshToken: days
+
+  # ===========================================================================
+  # IAM roles — least privilege, one role per trust boundary
+  # ===========================================================================
+
+  # session + weather + agents: outbound HTTPS only. Logs only, no AWS data.
+  StatelessLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "adidlabs-stateless-role-${AWS::StackName}-${AWS::Region}"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: lambda.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+
+  # bag: DynamoDB item ops on the bag table ONLY.
+  BagLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "adidlabs-bag-role-${AWS::StackName}-${AWS::Region}"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: lambda.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+      Policies:
+        - PolicyName: bag-ddb
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:DeleteItem
+                  - dynamodb:Query
+                Resource:
+                  - !GetAtt BagTableResource.Arn
+
+  # chat (api-handler): invoke the AgentCore Runtime orchestrator (scoped to the
+  # ARN when provided; when empty at first deploy the statement is omitted) AND
+  # invoke the AWS_IAM LiteLLM function URL. Per docs/architecture.md section 6
+  # the chat (api-handler) role holds lambda:InvokeFunctionUrl (IAM auth) on the
+  # LiteLLM function URL — this is the identity-policy half of the SigV4 grant;
+  # the resource-policy half is LiteLlmUrlInvokePermission below.
+  ChatLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "adidlabs-chat-role-${AWS::StackName}-${AWS::Region}"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: lambda.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+      Policies:
+        # Always-present: call the LiteLLM function URL (AWS_IAM SigV4). Scoped to
+        # exactly the LiteLLM function ARN — no wildcard.
+        - PolicyName: chat-invoke-litellm-url
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: lambda:InvokeFunctionUrl
+                Resource: !GetAtt LiteLlmFunction.Arn
+                Condition:
+                  StringEquals:
+                    lambda:FunctionUrlAuthType: AWS_IAM
+        # Conditional: only granted once a real AgentCore Runtime ARN is set.
+        - !If
+          - HaveAgentArn
+          - PolicyName: chat-invoke-agentcore
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                - Effect: Allow
+                  Action: bedrock-agentcore:InvokeAgentRuntime
+                  # Scoped by account/region; the exact runtime ARN is passed
+                  # via env and enforced at call time. Bounded, not wildcard "*".
+                  Resource: !Sub "arn:${AWS::Partition}:bedrock-agentcore:${AWS::Region}:${AWS::AccountId}:runtime/*"
+          - !Ref AWS::NoValue
+
+  # tools: DynamoDB on both tables + bedrock:Retrieve on the KB.
+  ToolsLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "adidlabs-tools-role-${AWS::StackName}-${AWS::Region}"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: lambda.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+      Policies:
+        - PolicyName: tools-ddb
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:DeleteItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                Resource:
+                  - !GetAtt CatalogTableResource.Arn
+                  - !GetAtt BagTableResource.Arn
+        - PolicyName: tools-kb-retrieve
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: bedrock:Retrieve
+                # Bounded to this account/region's knowledge bases; the exact
+                # KB_ID gates retrieval in code. Never a bare "*".
+                Resource: !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:knowledge-base/*"
+        - PolicyName: tools-embed-titan
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              # For the FAISS-in-Lambda fallback (infra/README "KB fallback"):
+              # if the query-time embedding path is ever wired, the tools
+              # function embeds the query with Titan v2 in-process before the
+              # FAISS similarity search. The SHIPPED search_lab_knowledge only
+              # calls bedrock-agent-runtime Retrieve and degrades to web (no
+              # Titan call), so this grant is dormant for the shipped code — it
+              # exists so the documented fallback path does not AccessDenied.
+              # Scoped to EXACTLY the one Titan embedding foundation model.
+              - Effect: Allow
+                Action: bedrock:InvokeModel
+                Resource: !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}::foundation-model/amazon.titan-embed-text-v2:0"
+        - PolicyName: tools-read-kb-corpus
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              # For the FAISS-in-Lambda fallback: read the index/corpus objects.
+              - Effect: Allow
+                Action: s3:GetObject
+                Resource: !Sub "${KbCorpusBucket.Arn}/*"
+
+  # Bedrock Knowledge Base SERVICE role. The KB is created out of band by
+  # data/setup_kb.py (S3 Vectors is preview — no stable CFN type), but the role
+  # the KB assumes is durable infra, so it lives here for a clean cross-module
+  # handoff: deploy.sh reads it via `cfn_output KbRoleArn` (falls back to a
+  # KB_ROLE_ARN env when this output is absent). Trust is bedrock.amazonaws.com;
+  # permissions are EXACTLY what a VECTOR KB over S3 Vectors needs — embed with
+  # Titan v2, read the corpus objects, and read/write the S3 Vectors index.
+  KbServiceRole:
+    Type: AWS::IAM::Role
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      RoleName: !Sub "adidlabs-kb-role-${AWS::StackName}-${AWS::Region}"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: bedrock.amazonaws.com }
+            Action: sts:AssumeRole
+            # Confused-deputy guard: only this account's KBs may assume the role.
+            Condition:
+              StringEquals:
+                "aws:SourceAccount": !Ref AWS::AccountId
+              ArnLike:
+                "aws:SourceArn": !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:knowledge-base/*"
+      Policies:
+        - PolicyName: kb-embed-titan
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              # Ingestion + query-time embedding with the one Titan v2 model
+              # (matches data/setup_kb.py EMBED_MODEL_ID, dim 1024).
+              - Effect: Allow
+                Action: bedrock:InvokeModel
+                Resource: !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}::foundation-model/amazon.titan-embed-text-v2:0"
+        - PolicyName: kb-read-corpus
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              # Read the markdown corpus objects ingested into the KB.
+              - Effect: Allow
+                Action: [s3:GetObject, s3:ListBucket]
+                Resource:
+                  - !GetAtt KbCorpusBucket.Arn
+                  - !Sub "${KbCorpusBucket.Arn}/*"
+        - PolicyName: kb-s3-vectors
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              # S3 Vectors index the KB reads/writes at ingest + retrieve time.
+              # data/setup_kb.py names the vector bucket adidlabs-kb-vectors-
+              # <account> and the index adidlabs-kb-index.
+              - Effect: Allow
+                Action:
+                  - s3vectors:GetVectors
+                  - s3vectors:PutVectors
+                  - s3vectors:QueryVectors
+                  - s3vectors:ListVectors
+                  - s3vectors:DeleteVectors
+                  - s3vectors:GetIndex
+                  - s3vectors:GetVectorBucket
+                Resource:
+                  - !Sub "arn:${AWS::Partition}:s3vectors:${AWS::Region}:${AWS::AccountId}:bucket/adidlabs-kb-vectors-${AWS::AccountId}"
+                  - !Sub "arn:${AWS::Partition}:s3vectors:${AWS::Region}:${AWS::AccountId}:bucket/adidlabs-kb-vectors-${AWS::AccountId}/index/*"
+      Tags:
+        - { Key: app, Value: adidlabs }
+
+  # LiteLLM: bedrock:InvokeModel on EXACTLY the two apac inference profiles plus
+  # the underlying foundation models the profiles route to. Nothing else.
+  LiteLlmLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "adidlabs-litellm-role-${AWS::StackName}-${AWS::Region}"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: lambda.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+      Policies:
+        - PolicyName: litellm-bedrock-invoke
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - bedrock:InvokeModel
+                  - bedrock:InvokeModelWithResponseStream
+                Resource:
+                  # The two APAC cross-region inference profiles.
+                  - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/apac.anthropic.claude-haiku-4-5-20251001-v1:0"
+                  - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/apac.amazon.nova-pro-v1:0"
+                  # The foundation-model ARNs the profiles fan out to across the
+                  # three APAC regions (a cross-region profile invokes the FM in
+                  # each member region on your behalf).
+                  - !Sub "arn:${AWS::Partition}:bedrock:ap-southeast-2::foundation-model/anthropic.claude-haiku-4-5-20251001-v1:0"
+                  - !Sub "arn:${AWS::Partition}:bedrock:ap-southeast-1::foundation-model/anthropic.claude-haiku-4-5-20251001-v1:0"
+                  - !Sub "arn:${AWS::Partition}:bedrock:ap-northeast-1::foundation-model/anthropic.claude-haiku-4-5-20251001-v1:0"
+                  - !Sub "arn:${AWS::Partition}:bedrock:ap-southeast-2::foundation-model/amazon.nova-pro-v1:0"
+                  - !Sub "arn:${AWS::Partition}:bedrock:ap-southeast-1::foundation-model/amazon.nova-pro-v1:0"
+                  - !Sub "arn:${AWS::Partition}:bedrock:ap-northeast-1::foundation-model/amazon.nova-pro-v1:0"
+
+  # ===========================================================================
+  # LiteLLM Lambda + function URL (AuthType = AWS_IAM). Defined BEFORE the API
+  # Lambdas so its URL can be passed to them one-way (no cycle).
+  # ===========================================================================
+  LiteLlmFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "adidlabs-litellm-${AWS::StackName}"
+      Description: LiteLLM gateway (routes nova-pro, haiku-4.5) — IAM function URL.
+      Role: !GetAtt LiteLlmLambdaRole.Arn
+      MemorySize: !Ref LiteLlmMemoryMb
+      Timeout: 60
+      PackageType: !If [UseLiteLlmImage, Image, Zip]
+      # Container path (production): aws-lambda-web-adapter image running LiteLLM.
+      Code: !If
+        - UseLiteLlmImage
+        - ImageUri: !Ref LiteLlmImageUri
+        # Inline zip bootstrap (demo): a tiny OpenAI-compatible shim over
+        # bedrock-runtime so the two routes resolve without a container build.
+        - ZipFile: |
+            """AdidLaBs LiteLLM inline bootstrap (demo).
+
+            Minimal OpenAI-compatible /chat/completions shim mapping the two
+            route names to APAC inference profiles via bedrock-runtime Converse.
+            Production replaces this with the LiteLLM container (see README).
+            Concept demo — no affiliation with adidas AG. All products fictional.
+            """
+            import json, os
+            import boto3
+
+            _ROUTES = {
+                "nova-pro": "apac.amazon.nova-pro-v1:0",
+                "haiku-4.5": "apac.anthropic.claude-haiku-4-5-20251001-v1:0",
+            }
+            _REGION = os.environ.get("AWS_REGION", "ap-southeast-2")
+
+
+            def _resp(status, body):
+                return {
+                    "statusCode": status,
+                    "headers": {"Content-Type": "application/json"},
+                    "body": json.dumps(body),
+                }
+
+
+            def handler(event, context=None):
+                ctx = (event.get("requestContext") or {}).get("http") or {}
+                path = ctx.get("path") or event.get("rawPath") or "/"
+                if path.endswith("/health") or path == "/":
+                    return _resp(200, {"status": "ok", "routes": list(_ROUTES)})
+
+                raw = event.get("body") or "{}"
+                try:
+                    payload = json.loads(raw)
+                except (TypeError, ValueError):
+                    return _resp(400, {"error": "invalid JSON body"})
+
+                route = payload.get("model", "haiku-4.5")
+                model_id = _ROUTES.get(route)
+                if not model_id:
+                    return _resp(400, {"error": f"unknown route '{route}'"})
+
+                messages = []
+                for m in payload.get("messages", []):
+                    role = "assistant" if m.get("role") == "assistant" else "user"
+                    messages.append({"role": role, "content": [{"text": str(m.get("content", ""))}]})
+                if not messages:
+                    messages = [{"role": "user", "content": [{"text": ""}]}]
+
+                client = boto3.client("bedrock-runtime", region_name=_REGION)
+                try:
+                    out = client.converse(modelId=model_id, messages=messages)
+                except Exception as exc:  # noqa: BLE001
+                    return _resp(502, {"error": f"bedrock converse failed: {exc}"})
+
+                text = ""
+                for block in out.get("output", {}).get("message", {}).get("content", []):
+                    text += block.get("text", "")
+                return _resp(200, {
+                    "id": "adidlabs-litellm-demo",
+                    "model": route,
+                    "choices": [{"index": 0, "message": {"role": "assistant", "content": text},
+                                 "finish_reason": out.get("stopReason", "stop")}],
+                })
+      Handler: !If [UseLiteLlmImage, !Ref "AWS::NoValue", index.handler]
+      Runtime: !If [UseLiteLlmImage, !Ref "AWS::NoValue", python3.12]
+      Environment:
+        Variables:
+          # Web-adapter contract when the container path is used; harmless as a
+          # plain env var on the zip path.
+          AWS_LWA_PORT: "4000"
+          PORT: "4000"
+          LITELLM_CONFIG_PATH: /var/task/config.yaml
+      Tags:
+        - { Key: app, Value: adidlabs }
+
+  LiteLlmUrl:
+    Type: AWS::Lambda::Url
+    Properties:
+      TargetFunctionArn: !GetAtt LiteLlmFunction.Arn
+      AuthType: AWS_IAM
+      InvokeMode: BUFFERED
+
+  # Resource-policy half of the LiteLLM function-URL grant. AWS_IAM function URLs
+  # require BOTH the caller's identity policy (lambda:InvokeFunctionUrl — see
+  # ChatLambdaRole and, out-of-band, the AgentCore Runtime execution role) AND a
+  # resource-based permission on the function. Principal is this account: the
+  # SourceArn condition can't scope a function-URL grant to a specific role, so
+  # the identity policies remain the effective gate (least privilege lives there,
+  # AuthType=AWS_IAM keeps the URL non-public).
+  LiteLlmUrlInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref LiteLlmFunction
+      Action: lambda:InvokeFunctionUrl
+      Principal: !Ref AWS::AccountId
+      FunctionUrlAuthType: AWS_IAM
+
+  # ===========================================================================
+  # Backend API Lambdas — one function per route (handlers in backend/).
+  # Each uses the inline bootstrap unless ArtifactsBucket + ApiCodeS3Key are set.
+  # ===========================================================================
+
+  SessionFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "adidlabs-api-session-${AWS::StackName}"
+      Description: GET /api/session — server time + IP geolocation.
+      Role: !GetAtt StatelessLambdaRole.Arn
+      Runtime: python3.12
+      Timeout: 10
+      MemorySize: !Ref LambdaMemoryMb
+      Handler: !If [UseApiS3Code, session.handler, index.handler]
+      Code: !If
+        - UseApiS3Code
+        - { S3Bucket: !Ref ArtifactsBucket, S3Key: !Ref ApiCodeS3Key }
+        - ZipFile: |
+            import json
+            from datetime import datetime, timezone
+
+            def _client_ip(headers):
+                # CloudFront-Viewer-Address is "<ip>:<port>": IPv4 as
+                # "203.0.113.5:443", IPv6 bracketed as "[2001:db8::1]:443".
+                # X-Forwarded-For is a comma list of bare IPs (no port). Parse
+                # the port off ONLY for IPv4/bracketed-IPv6 so bare IPv6 (which
+                # contains colons but no port) survives intact.
+                raw = (headers.get("cloudfront-viewer-address")
+                       or headers.get("x-forwarded-for") or "")
+                first = raw.split(",")[0].strip()
+                if not first:
+                    return None
+                if first.startswith("["):
+                    # Bracketed IPv6, optionally "]:port" -> inside the brackets.
+                    return first[1:].split("]", 1)[0] or None
+                if first.count(":") == 1:
+                    # Exactly one colon -> IPv4 "host:port"; drop the port.
+                    return first.split(":", 1)[0] or None
+                # No colon (bare IPv4) or many colons (bare IPv6) -> as-is.
+                return first or None
+
+            def handler(event, context=None):
+                headers = {k.lower(): v for k, v in (event.get("headers") or {}).items()}
+                ip = _client_ip(headers)
+                now = datetime.now(timezone.utc)
+                body = {"ip": ip, "city": "Sydney", "region": "New South Wales",
+                        "country": "Australia", "lat": -33.8688, "lon": 151.2093,
+                        "tz": "Australia/Sydney", "localTime": now.strftime("%H:%M"),
+                        "localDate": now.strftime("%Y-%m-%d"),
+                        "serverTimeUtc": now.isoformat(), "geoSource": "bootstrap",
+                        "region_aws": "ap-southeast-2"}
+                # CORS is applied once, at the HTTP API (CorsConfiguration);
+                # handlers must NOT set Access-Control-* or the header duplicates.
+                return {"statusCode": 200, "headers": {"Content-Type": "application/json"},
+                        "body": json.dumps(body)}
+      Tags:
+        - { Key: app, Value: adidlabs }
+
+  WeatherFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "adidlabs-api-weather-${AWS::StackName}"
+      Description: GET /api/weather — 3-day Open-Meteo forecast.
+      Role: !GetAtt StatelessLambdaRole.Arn
+      Runtime: python3.12
+      Timeout: 10
+      MemorySize: !Ref LambdaMemoryMb
+      Handler: !If [UseApiS3Code, weather.handler, index.handler]
+      Code: !If
+        - UseApiS3Code
+        - { S3Bucket: !Ref ArtifactsBucket, S3Key: !Ref ApiCodeS3Key }
+        - ZipFile: |
+            import json, urllib.parse, urllib.request
+            from datetime import datetime
+
+            def handler(event, context=None):
+                q = event.get("queryStringParameters") or {}
+                try:
+                    lat = float(q.get("lat") or -33.8688); lon = float(q.get("lon") or 151.2093)
+                except (TypeError, ValueError):
+                    return _r(400, {"error": "lat/lon must be numeric"})
+                url = "https://api.open-meteo.com/v1/forecast?" + urllib.parse.urlencode({
+                    "latitude": lat, "longitude": lon,
+                    "daily": "weathercode,temperature_2m_max,temperature_2m_min",
+                    "forecast_days": 3, "timezone": "auto"})
+                try:
+                    req = urllib.request.Request(url, headers={"User-Agent": "AdidLaBs/1.0"})
+                    with urllib.request.urlopen(req, timeout=4) as resp:
+                        raw = json.loads(resp.read().decode("utf-8"))
+                except Exception as exc:  # noqa: BLE001
+                    return _r(502, {"error": "weather upstream unavailable", "detail": str(exc)})
+                d = raw.get("daily") or {}
+                dates, codes = d.get("time") or [], d.get("weathercode") or []
+                hi, lo = d.get("temperature_2m_max") or [], d.get("temperature_2m_min") or []
+                days = []
+                for i in range(min(3, len(dates))):
+                    try: day = datetime.strptime(dates[i], "%Y-%m-%d").strftime("%a").upper()
+                    except (TypeError, ValueError): day = dates[i]
+                    days.append({"date": dates[i], "day": day,
+                                 "weathercode": codes[i] if i < len(codes) else 0,
+                                 "hi": round(hi[i]) if i < len(hi) and hi[i] is not None else None,
+                                 "lo": round(lo[i]) if i < len(lo) and lo[i] is not None else None})
+                return _r(200, {"lat": lat, "lon": lon,
+                                "units": {"temperature": "celsius"}, "days": days})
+
+            def _r(s, b):
+                # CORS applied once at the HTTP API (CorsConfiguration); no ACAO here.
+                return {"statusCode": s, "headers": {"Content-Type": "application/json"},
+                        "body": json.dumps(b)}
+      Tags:
+        - { Key: app, Value: adidlabs }
+
+  BagFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "adidlabs-api-bag-${AWS::StackName}"
+      Description: GET/POST/DELETE /api/bag — CRUD on adidlabs-bag.
+      Role: !GetAtt BagLambdaRole.Arn
+      Runtime: python3.12
+      Timeout: 10
+      MemorySize: !Ref LambdaMemoryMb
+      Handler: !If [UseApiS3Code, bag.handler, index.handler]
+      Environment:
+        Variables:
+          BAG_TABLE: !Ref BagTable
+          CATALOG_TABLE: !Ref CatalogTable
+      Code: !If
+        - UseApiS3Code
+        - { S3Bucket: !Ref ArtifactsBucket, S3Key: !Ref ApiCodeS3Key }
+        - ZipFile: |
+            import json, os
+            from decimal import Decimal
+            import boto3
+            from boto3.dynamodb.conditions import Key
+
+            def _table():
+                ddb = boto3.resource("dynamodb", region_name=os.environ.get("AWS_REGION", "ap-southeast-2"))
+                return ddb.Table(os.environ.get("BAG_TABLE", "adidlabs-bag"))
+
+            def _clean(o):
+                if isinstance(o, list): return [_clean(v) for v in o]
+                if isinstance(o, dict): return {k: _clean(v) for k, v in o.items()}
+                if isinstance(o, Decimal): return int(o) if o % 1 == 0 else float(o)
+                return o
+
+            def _uid(event):
+                claims = (((event.get("requestContext") or {}).get("authorizer") or {}).get("jwt") or {}).get("claims") or {}
+                return str(claims.get("sub") or "demo-user")
+
+            def _bag(uid):
+                items = _clean(_table().query(KeyConditionExpression=Key("user_id").eq(uid)).get("Items", []))
+                sub = sum(float(i.get("price") or 0) * int(i.get("qty") or 1) for i in items)
+                # "count" = distinct line items (matches the frontend bag badge,
+                # which uses items.length); "total_qty" = sum of per-line qty, so
+                # the two notions are never conflated. "subtotal" already sums
+                # price * qty.
+                return {"user_id": uid, "items": items, "count": len(items),
+                        "total_qty": sum(int(i.get("qty") or 1) for i in items),
+                        "subtotal": round(sub, 2)}
+
+            def handler(event, context=None):
+                m = (((event.get("requestContext") or {}).get("http") or {}).get("method") or "GET").upper()
+                if m == "OPTIONS": return _r(204, "")
+                uid = _uid(event)
+                try:
+                    if m == "GET": return _r(200, _bag(uid))
+                    if m == "POST":
+                        b = json.loads(event.get("body") or "{}")
+                        iid = b.get("item_id")
+                        if not iid: return _r(400, {"error": "item_id is required"})
+                        row = {"user_id": uid, "item_id": str(iid), "qty": int(b.get("qty", 1) or 1),
+                               "title": b.get("title", ""), "category": b.get("category", "")}
+                        if b.get("price") is not None: row["price"] = Decimal(str(b["price"]))
+                        _table().put_item(Item=row)
+                        return _r(200, _bag(uid))
+                    if m == "DELETE":
+                        iid = (event.get("queryStringParameters") or {}).get("item_id") or json.loads(event.get("body") or "{}").get("item_id")
+                        if not iid: return _r(400, {"error": "item_id is required"})
+                        _table().delete_item(Key={"user_id": uid, "item_id": str(iid)})
+                        return _r(200, _bag(uid))
+                    return _r(405, {"error": "method not allowed"})
+                except Exception as exc:  # noqa: BLE001
+                    return _r(500, {"error": "bag operation failed", "detail": str(exc)})
+
+            def _r(s, b):
+                # CORS (origin/methods/headers) applied once at the HTTP API
+                # CorsConfiguration; setting Access-Control-* here would duplicate
+                # the header and browsers reject multi-valued ACAO.
+                return {"statusCode": s, "headers": {"Content-Type": "application/json"},
+                        "body": (b if isinstance(b, str) else json.dumps(b, default=str))}
+      Tags:
+        - { Key: app, Value: adidlabs }
+
+  ChatFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "adidlabs-api-chat-${AWS::StackName}"
+      Description: POST /api/chat — orchestrator turn (canned in DEMO_MODE).
+      Role: !GetAtt ChatLambdaRole.Arn
+      Runtime: python3.12
+      Timeout: 60
+      MemorySize: !Ref LambdaMemoryMb
+      Handler: !If [UseApiS3Code, chat.handler, index.handler]
+      Environment:
+        Variables:
+          DEMO_MODE: !Ref DemoMode
+          AGENTCORE_AGENT_ARN: !Ref AgentCoreAgentArn
+          LITELLM_URL: !GetAtt LiteLlmUrl.FunctionUrl
+          KB_ID: !Ref KbId
+      Code: !If
+        - UseApiS3Code
+        - { S3Bucket: !Ref ArtifactsBucket, S3Key: !Ref ApiCodeS3Key }
+        - ZipFile: |
+            import json, os
+
+            _ROSTER = {"orchestrator": "adidlabs/orchestrator-9f21", "weather": "adidlabs/weather-3b7c",
+                       "shoes": "adidlabs/shoes-4e2a", "pants": "adidlabs/pants-8c1d",
+                       "tshirt": "adidlabs/tshirt-2a9e", "jumper": "adidlabs/jumper-6d3f",
+                       "jacket": "adidlabs/jacket-1e8b", "accessory": "adidlabs/accessory-5c4a"}
+
+            def handler(event, context=None):
+                m = (((event.get("requestContext") or {}).get("http") or {}).get("method") or "POST").upper()
+                if m == "OPTIONS": return _r(204, "")
+                if m != "POST": return _r(405, {"error": "method not allowed"})
+                try:
+                    body = json.loads(event.get("body") or "{}")
+                except (TypeError, ValueError):
+                    return _r(400, {"error": "invalid JSON body"})
+                msg = (body.get("message") or "").strip()
+                if not msg: return _r(400, {"error": "message is required"})
+                session = body.get("session") or {}
+                city = session.get("city") or "your city"
+                reply = ("Reading " + city + " — here's a weather-matched look my category "
+                         "agents pulled together:\n- Shoes: Cloudstep Everyday Runner — €119\n"
+                         "- Pants: Breeze Woven Jogger — €69\n- Tshirt: Aircell Performance Tee — €39\n"
+                         "- Jacket: Stormline Shell Jacket — €149\n- Accessory: Everyday Crossbody Pouch — €34\n"
+                         "Say the word and I'll drop any of these in your bag.")
+                agents = [{"name": n.upper(), "wid": w,
+                           "route": "nova-pro" if n == "orchestrator" else "haiku-4.5"}
+                          for n, w in _ROSTER.items()]
+                return _r(200, {"mode": "demo", "reply": reply, "agents": agents})
+
+            def _r(s, b):
+                # CORS applied once at the HTTP API (CorsConfiguration); no ACAO here.
+                return {"statusCode": s, "headers": {"Content-Type": "application/json"},
+                        "body": (b if isinstance(b, str) else json.dumps(b))}
+      Tags:
+        - { Key: app, Value: adidlabs }
+
+  AgentsFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "adidlabs-api-agents-${AWS::StackName}"
+      Description: GET /api/agents — roster + wid identities + status.
+      Role: !GetAtt StatelessLambdaRole.Arn
+      Runtime: python3.12
+      Timeout: 10
+      MemorySize: !Ref LambdaMemoryMb
+      Handler: !If [UseApiS3Code, agents.handler, index.handler]
+      Code: !If
+        - UseApiS3Code
+        - { S3Bucket: !Ref ArtifactsBucket, S3Key: !Ref ApiCodeS3Key }
+        - ZipFile: |
+            import json
+
+            ROSTER = [
+                {"name": "ORCHESTRATOR", "wid": "adidlabs/orchestrator-9f21", "route": "nova-pro"},
+                {"name": "WEATHER", "wid": "adidlabs/weather-3b7c", "route": "haiku-4.5"},
+                {"name": "SHOES", "wid": "adidlabs/shoes-4e2a", "route": "haiku-4.5"},
+                {"name": "PANTS", "wid": "adidlabs/pants-8c1d", "route": "haiku-4.5"},
+                {"name": "TSHIRT", "wid": "adidlabs/tshirt-2a9e", "route": "haiku-4.5"},
+                {"name": "JUMPER", "wid": "adidlabs/jumper-6d3f", "route": "haiku-4.5"},
+                {"name": "JACKET", "wid": "adidlabs/jacket-1e8b", "route": "haiku-4.5"},
+                {"name": "ACCESSORY", "wid": "adidlabs/accessory-5c4a", "route": "haiku-4.5"},
+            ]
+
+            def handler(event, context=None):
+                q = event.get("queryStringParameters") or {}
+                authed = str(q.get("authed") or "").lower() in ("1", "true", "yes", "on")
+                status = "running" if authed else "standby"
+                agents = [{**a, "status": status} for a in ROSTER]
+                # CORS applied once at the HTTP API (CorsConfiguration); no ACAO here.
+                return {"statusCode": 200, "headers": {"Content-Type": "application/json"},
+                        "body": json.dumps({"region": "ap-southeast-2", "count": len(ROSTER), "agents": agents})}
+      Tags:
+        - { Key: app, Value: adidlabs }
+
+  # MCP tools Lambda (also the FAISS-in-Lambda KB fallback host).
+  ToolsFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "adidlabs-tools-${AWS::StackName}"
+      Description: MCP tools (catalog/deals/bag/knowledge/web) + FAISS KB fallback host.
+      Role: !GetAtt ToolsLambdaRole.Arn
+      Runtime: python3.12
+      Timeout: 30
+      MemorySize: !Ref LambdaMemoryMb
+      Handler: !If [UseToolsS3Code, server.handler, index.handler]
+      Environment:
+        Variables:
+          CATALOG_TABLE: !Ref CatalogTable
+          BAG_TABLE: !Ref BagTable
+          KB_ID: !Ref KbId
+          KB_CORPUS_BUCKET: !Ref KbCorpusBucket
+          TAVILY_API_KEY: !Ref TavilyApiKey
+          DEMO_MODE: !Ref DemoMode
+      Code: !If
+        - UseToolsS3Code
+        - { S3Bucket: !Ref ArtifactsBucket, S3Key: !Ref ToolsCodeS3Key }
+        - ZipFile: |
+            """AdidLaBs MCP tools inline bootstrap (demo).
+
+            A tiny health/echo handler so the tools function exists (and can
+            receive KB_ID via env from deploy.sh) before the real mcp-tools
+            server zip is staged. Production replaces this with mcp-tools/server.py.
+            Concept demo — no affiliation with adidas AG. All products fictional.
+            """
+            import json, os
+
+            _TOOLS = ["get_catalog", "get_deals", "bag_add", "bag_get",
+                      "search_lab_knowledge", "search_web"]
+
+            def handler(event, context=None):
+                return {"statusCode": 200,
+                        "headers": {"Content-Type": "application/json"},
+                        "body": json.dumps({"status": "ok", "tools": _TOOLS,
+                                            "kb_id": os.environ.get("KB_ID", ""),
+                                            "region": "ap-southeast-2"})}
+      Tags:
+        - { Key: app, Value: adidlabs }
+
+  # ===========================================================================
+  # HTTP API + JWT authorizer (Cognito) + routes + integrations
+  # ===========================================================================
+  HttpApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: !Sub "adidlabs-http-api-${AWS::StackName}"
+      ProtocolType: HTTP
+      CorsConfiguration:
+        AllowOrigins: ["*"]
+        AllowMethods: [GET, POST, DELETE, OPTIONS]
+        AllowHeaders: [Content-Type, Authorization]
+        MaxAge: 3600
+
+  JwtAuthorizer:
+    Type: AWS::ApiGatewayV2::Authorizer
+    Properties:
+      ApiId: !Ref HttpApi
+      AuthorizerType: JWT
+      Name: adidlabs-cognito-jwt
+      IdentitySource: ["$request.header.Authorization"]
+      JwtConfiguration:
+        Audience: [!Ref UserPoolClient]
+        Issuer: !Sub "https://cognito-idp.${AWS::Region}.amazonaws.com/${UserPool}"
+
+  # --- Integrations (one per function) --------------------------------------
+  SessionIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref HttpApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !GetAtt SessionFunction.Arn
+      PayloadFormatVersion: "2.0"
+
+  WeatherIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref HttpApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !GetAtt WeatherFunction.Arn
+      PayloadFormatVersion: "2.0"
+
+  BagIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref HttpApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !GetAtt BagFunction.Arn
+      PayloadFormatVersion: "2.0"
+
+  ChatIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref HttpApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !GetAtt ChatFunction.Arn
+      PayloadFormatVersion: "2.0"
+
+  AgentsIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref HttpApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !GetAtt AgentsFunction.Arn
+      PayloadFormatVersion: "2.0"
+
+  # --- Routes ----------------------------------------------------------------
+  # session, weather, agents are pre-auth (session/weather/agents are fetched
+  # right after login but the JWT authorizer is applied to bag + chat where
+  # user_id from the token is load-bearing). session/weather/agents use no
+  # authorizer so the locked/gate UI can render before login.
+  SessionRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: "GET /api/session"
+      Target: !Sub "integrations/${SessionIntegration}"
+
+  WeatherRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: "GET /api/weather"
+      Target: !Sub "integrations/${WeatherIntegration}"
+
+  AgentsRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: "GET /api/agents"
+      Target: !Sub "integrations/${AgentsIntegration}"
+
+  # bag (all verbs) — JWT-protected; user_id is derived from the token sub.
+  BagGetRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: "GET /api/bag"
+      Target: !Sub "integrations/${BagIntegration}"
+      AuthorizationType: JWT
+      AuthorizerId: !Ref JwtAuthorizer
+
+  BagPostRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: "POST /api/bag"
+      Target: !Sub "integrations/${BagIntegration}"
+      AuthorizationType: JWT
+      AuthorizerId: !Ref JwtAuthorizer
+
+  BagDeleteRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: "DELETE /api/bag"
+      Target: !Sub "integrations/${BagIntegration}"
+      AuthorizationType: JWT
+      AuthorizerId: !Ref JwtAuthorizer
+
+  ChatRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: "POST /api/chat"
+      Target: !Sub "integrations/${ChatIntegration}"
+      AuthorizationType: JWT
+      AuthorizerId: !Ref JwtAuthorizer
+
+  # --- Stage (auto-deploy) ---------------------------------------------------
+  DefaultStage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId: !Ref HttpApi
+      StageName: "$default"
+      AutoDeploy: true
+
+  # --- Lambda invoke permissions for API Gateway ----------------------------
+  SessionInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref SessionFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*/*/api/session"
+
+  WeatherInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref WeatherFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*/*/api/weather"
+
+  BagInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref BagFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*/*/api/bag"
+
+  ChatInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref ChatFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*/*/api/chat"
+
+  AgentsInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref AgentsFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*/*/api/agents"
+
+# -----------------------------------------------------------------------------
+# Outputs — the five contractual outputs PLUS the ids deploy.sh / teardown.sh
+# read (SiteBucketName, CloudFrontDistributionId, KbCorpusBucketName,
+# KbRoleArn, ApiHandlerFunctionName, ToolsFunctionName, AgentRuntimeArn, KbId)
+# and the alternate spellings the scripts use
+# (CloudFrontUrl/ApiBaseUrl/LiteLLMUrl).
+# AgentGatewayId is intentionally NOT exposed: the AgentCore gateway belongs to
+# the sibling gateway module, and deploy.sh already falls back to GATEWAY_ID /
+# a stable default when that output is absent.
+# -----------------------------------------------------------------------------
+Outputs:
+
+  # --- The five required by the module contract ---
+  CloudFrontURL:
+    Description: Public site URL (raw CloudFront domain, no custom domain).
+    Value: !Sub "https://${SiteDistribution.DomainName}"
+
+  ApiUrl:
+    Description: HTTP API base URL.
+    Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+
+  LiteLlmUrl:
+    Description: LiteLLM Lambda function URL (AWS_IAM auth).
+    Value: !GetAtt LiteLlmUrl.FunctionUrl
+
+  UserPoolId:
+    Description: Cognito user pool id.
+    Value: !Ref UserPool
+
+  UserPoolClientId:
+    Description: Cognito app client id (SPA, no secret).
+    Value: !Ref UserPoolClient
+
+  # --- Alternate spellings consumed by deploy.sh / teardown.sh ---
+  CloudFrontUrl:
+    Description: Alias of CloudFrontURL for deploy.sh (cfn_output CloudFrontUrl).
+    Value: !Sub "https://${SiteDistribution.DomainName}"
+
+  ApiBaseUrl:
+    Description: Alias of ApiUrl for deploy.sh (cfn_output ApiBaseUrl).
+    Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+
+  LiteLLMUrl:
+    Description: Alias of LiteLlmUrl for deploy.sh (cfn_output LiteLLMUrl).
+    Value: !GetAtt LiteLlmUrl.FunctionUrl
+
+  # --- Ids the deploy/teardown scripts read for post-deploy steps ---
+  SiteBucketName:
+    Description: Private site bucket name (deploy.sh syncs frontend/dist here).
+    Value: !Ref SiteBucket
+
+  CloudFrontDistributionId:
+    Description: CloudFront distribution id (deploy.sh invalidates it).
+    Value: !Ref SiteDistribution
+
+  KbCorpusBucketName:
+    Description: KB corpus bucket (seed_catalog.py / setup_kb.py write here).
+    Value: !Ref KbCorpusBucket
+
+  KbRoleArn:
+    Description: >-
+      Bedrock Knowledge Base service-role ARN. deploy.sh reads this
+      (cfn_output KbRoleArn) and passes it to data/setup_kb.py as the role the
+      KB assumes (Titan embed + corpus read + S3 Vectors). Clean cross-module
+      handoff for the out-of-band (S3 Vectors preview) KB creation.
+    Value: !GetAtt KbServiceRole.Arn
+
+  ApiHandlerFunctionName:
+    Description: Chat API function name (deploy.sh pushes KB_ID here).
+    Value: !Ref ChatFunction
+
+  ToolsFunctionName:
+    Description: MCP tools function name (deploy.sh pushes KB_ID here).
+    Value: !Ref ToolsFunction
+
+  AgentRuntimeArn:
+    Description: >-
+      AgentCore Runtime ARN for /api/chat. Provisioned outside this template
+      (agents module); echoes the AgentCoreAgentArn parameter (empty until set).
+    Value: !Ref AgentCoreAgentArn
+
+  KbId:
+    Description: Bedrock Knowledge Base id (echoes KbId param; set by setup_kb.py).
+    Value: !Ref KbId
+
+  UserPoolProviderUrl:
+    Description: Cognito issuer URL (JWT authorizer issuer / frontend config).
+    Value: !Sub "https://cognito-idp.${AWS::Region}.amazonaws.com/${UserPool}"
+
+  CatalogTableName:
+    Description: DynamoDB catalog table name.
+    Value: !Ref CatalogTableResource
+
+  BagTableName:
+    Description: DynamoDB bag table name.
+    Value: !Ref BagTableResource

@@ -1,0 +1,43 @@
+# AdidLaBs — LiteLLM gateway configuration
+# Concept demo — no affiliation with adidas AG. All products fictional.
+#
+# Exactly TWO named routes. Agents reference these route names ONLY
+# (model="nova-pro" or model="haiku-4.5") — never a raw Bedrock model id.
+#
+# Region is pinned to ap-southeast-2 (Sydney). The two targets are APAC
+# cross-region inference profiles (apac.* ids). LiteLLM signs the Bedrock
+# calls with SigV4 using the Lambda execution role's credentials.
+
+model_list:
+  # Route 1 — orchestrator (supervisor / reasoning + composition)
+  - model_name: nova-pro
+    litellm_params:
+      model: bedrock/apac.amazon.nova-pro-v1:0
+      aws_region_name: ap-southeast-2
+
+  # Route 2 — every other agent (weather + 6 category agents)
+  - model_name: haiku-4.5
+    litellm_params:
+      model: bedrock/apac.anthropic.claude-haiku-4-5-20251001-v1:0
+      aws_region_name: ap-southeast-2
+
+litellm_settings:
+  # Drop OpenAI-only params the Bedrock provider does not accept, instead of erroring.
+  # NOTE: gateway_app.py also passes drop_params=True to save_worker_config. The two
+  # are INTENTIONALLY kept in sync: this YAML value is authoritative for the CLI/local
+  # path (litellm --config / run_local.sh), the kwarg for the in-process Lambda path.
+  # Both resolve to identical behaviour; if you change one, change the other.
+  drop_params: true
+
+general_settings:
+  # No master key for the demo — the endpoint is protected at the network edge
+  # by the Lambda function URL's AWS_IAM auth (only principals holding the
+  # explicit lambda:InvokeFunctionUrl grant can reach it).
+  #
+  # To require a key instead, uncomment the line below (value read from env),
+  # set LITELLM_MASTER_KEY on the Lambda, and have callers send
+  # `Authorization: Bearer $LITELLM_MASTER_KEY`. See README.md, section
+  # "No master key in the demo (and how to add one)". To verify locally without
+  # editing this file, run: LITELLM_MASTER_KEY='sk-demo-local' ./run_local.sh
+  # (the script enables master_key on a throwaway config copy and sends the header).
+  # master_key: os.environ/LITELLM_MASTER_KEY

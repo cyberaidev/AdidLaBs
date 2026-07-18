@@ -1,0 +1,4 @@
+# AdidLaBs agent mesh - dev / CI dependencies.
+# Concept demo - no affiliation with adidas AG. All products fictional.
+-r requirements.txt
+pytest>=8.0,<9.0

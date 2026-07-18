@@ -1,0 +1,6 @@
+# AdidLaBs data module — minimal dependencies.
+# fetch_hf.py needs only `requests` (HuggingFace datasets-server REST API).
+# seed_dynamodb.py and setup_kb.py need boto3/botocore (AWS).
+# category_map.py and the unit tests are stdlib-only.
+requests>=2.31,<3
+boto3>=1.40,<2

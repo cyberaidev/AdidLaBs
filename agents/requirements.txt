@@ -1,0 +1,14 @@
+# AdidLaBs agent mesh - Python 3.12 runtime dependencies.
+# Concept demo - no affiliation with adidas AG. All products fictional.
+#
+# Kept intentionally minimal. The LLM client and Open-Meteo calls use only the
+# Python stdlib (urllib), so there is no HTTP library to pin. LangGraph and the
+# AgentCore SDK are the two functional deps; both degrade to in-process
+# fallbacks if absent (see orchestrator.py / entrypoint.py) so tests need
+# neither a live gateway nor Bedrock.
+
+langgraph>=0.2.0,<0.3.0
+bedrock-agentcore>=0.1.0
+
+# --- dev / CI only (install with: pip install -r requirements-dev.txt) ------
+# pytest>=8.0  is declared in requirements-dev.txt to keep the runtime image lean.

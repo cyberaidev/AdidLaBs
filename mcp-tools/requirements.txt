@@ -1,0 +1,17 @@
+# AdidLaBs MCP tools server dependencies
+# Concept demo - no affiliation with adidas AG. All products fictional.
+
+# FastMCP server (the official `mcp` package ships FastMCP under mcp.server.fastmcp)
+mcp>=1.2.0
+
+# AWS SDK - DynamoDB (catalog/bag) and Bedrock KB retrieve
+boto3>=1.34.0
+
+# Free, keyless web search fallback (DuckDuckGo)
+ddgs>=6.0.0
+
+# HTTP client for the optional Tavily REST fallback
+requests>=2.31.0
+
+# --- test-only (kept here so a single `pip install -r requirements.txt` bootstraps CI) ---
+pytest>=8.0.0

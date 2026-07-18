@@ -1,0 +1,125 @@
+{
+  "_meta": "Fixture of HuggingFace ashraq/fashion-product-images-small style rows. Covers all six contract categories via articleType, plus subCategory/masterCategory fallbacks, a keyword-heuristic case, and an unmappable row. Used by test_category_map.py.",
+  "rows": [
+    {
+      "id": "1001",
+      "articleType": "Sports Shoes",
+      "subCategory": "Shoes",
+      "masterCategory": "Footwear",
+      "gender": "Men",
+      "season": "Summer",
+      "baseColour": "Black",
+      "usage": "Sports",
+      "productDisplayName": "Sample Sports Shoe",
+      "expected_category": "shoes"
+    },
+    {
+      "id": "1002",
+      "articleType": "Jeans",
+      "subCategory": "Bottomwear",
+      "masterCategory": "Apparel",
+      "gender": "Women",
+      "season": "Fall",
+      "baseColour": "Blue",
+      "usage": "Casual",
+      "productDisplayName": "Sample Jeans",
+      "expected_category": "pants"
+    },
+    {
+      "id": "1003",
+      "articleType": "Tshirts",
+      "subCategory": "Topwear",
+      "masterCategory": "Apparel",
+      "gender": "Unisex",
+      "season": "Summer",
+      "baseColour": "White",
+      "usage": "Casual",
+      "productDisplayName": "Sample Tshirt",
+      "expected_category": "tshirt"
+    },
+    {
+      "id": "1004",
+      "articleType": "Sweaters",
+      "subCategory": "Sweaters",
+      "masterCategory": "Apparel",
+      "gender": "Women",
+      "season": "Winter",
+      "baseColour": "Grey",
+      "usage": "Casual",
+      "productDisplayName": "Sample Sweater",
+      "expected_category": "jumper"
+    },
+    {
+      "id": "1005",
+      "articleType": "Jackets",
+      "subCategory": "Winterwear",
+      "masterCategory": "Apparel",
+      "gender": "Men",
+      "season": "Winter",
+      "baseColour": "Olive",
+      "usage": "Outdoor",
+      "productDisplayName": "Sample Jacket",
+      "expected_category": "jacket"
+    },
+    {
+      "id": "1006",
+      "articleType": "Watches",
+      "subCategory": "Watches",
+      "masterCategory": "Accessories",
+      "gender": "Unisex",
+      "season": "All",
+      "baseColour": "Silver",
+      "usage": "Smart",
+      "productDisplayName": "Sample Watch",
+      "expected_category": "accessory"
+    },
+    {
+      "id": "1007",
+      "articleType": "SomeUnknownTopwearThing",
+      "subCategory": "Topwear",
+      "masterCategory": "Apparel",
+      "gender": "Women",
+      "season": "Spring",
+      "baseColour": "Pink",
+      "usage": "Casual",
+      "productDisplayName": "Fallback via subCategory",
+      "expected_category": "tshirt"
+    },
+    {
+      "id": "1008",
+      "articleType": "MysteryFootThing",
+      "subCategory": "SomethingUnknown",
+      "masterCategory": "Footwear",
+      "gender": "Men",
+      "season": "Summer",
+      "baseColour": "Brown",
+      "usage": "Casual",
+      "productDisplayName": "Fallback via masterCategory",
+      "expected_category": "shoes"
+    },
+    {
+      "id": "1009",
+      "articleType": "Vintage Hooded Pullover",
+      "subCategory": "TotallyUnknown",
+      "masterCategory": "AlsoUnknown",
+      "gender": "Unisex",
+      "season": "Fall",
+      "baseColour": "Green",
+      "usage": "Casual",
+      "productDisplayName": "Keyword heuristic -> jumper",
+      "expected_category": "jumper"
+    },
+    {
+      "id": "1010",
+      "articleType": "Deodorant",
+      "subCategory": "Fragrance",
+      "masterCategory": "Personal Care",
+      "gender": "Unisex",
+      "season": "All",
+      "baseColour": "Blue",
+      "usage": "Casual",
+      "productDisplayName": "Unmappable personal-care row",
+      "expected_category": null
+    }
+  ]
+}

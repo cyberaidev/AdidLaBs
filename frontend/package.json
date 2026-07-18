@@ -1,0 +1,23 @@
+{
+  "name": "adidlabs-frontend",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "AdidLaBs storefront SPA — concept demo, no affiliation with adidas AG. All products fictional.",
+  "license": "MIT",
+  "author": "cyberaidev",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "amazon-cognito-identity-js": "^6.3.12",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "vite": "^5.4.11"
+  }
+}

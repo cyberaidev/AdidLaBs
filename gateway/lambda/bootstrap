@@ -1,0 +1,38 @@
+#!/bin/bash
+# AdidLaBs — LiteLLM Lambda bootstrap (AWS Lambda Web Adapter, zip deploy)
+# Concept demo — no affiliation with adidas AG. All products fictional.
+#
+# This file is the Lambda handler entry when using the AWS Lambda Web Adapter
+# LAYER (not a container image). The adapter runs as a Lambda extension and
+# proxies API Gateway / function-URL events to a normal HTTP server that this
+# script launches on 127.0.0.1:$PORT.
+#
+# The adapter is contributed by the public layer. The version bumps per release
+# and the account does not expose ListLayerVersions, so resolve the ARN with
+# lambda/resolve_lwa_layer_arn.sh (or pin LWA_LAYER_VERSION) — do NOT trust a
+# hardcoded ":NN". Shape:
+#   arn:aws:lambda:ap-southeast-2:753240598075:layer:LambdaAdapterLayerX86:<VERSION>
+# Attaching that layer places the adapter extension at /opt/extensions and a
+# wrapper at /opt/bootstrap. Set AWS_LAMBDA_EXEC_WRAPPER=/opt/bootstrap on the
+# function; the layer's wrapper then execs the function Handler as a shell
+# command. Set Handler to "bootstrap" so THIS script runs on cold start.
+
+set -euo pipefail
+
+# Port the Web Adapter forwards to. Must match AWS_LWA_PORT set on the function
+# (README documents the env config). Default 8000 if unset.
+export PORT="${AWS_LWA_PORT:-8000}"
+
+# Make the entrypoint resolvable no matter what cwd Lambda hands us. We pin BOTH:
+#   - ${LAMBDA_TASK_ROOT}         -> so `python -m gateway_app` finds gateway_app.py
+#                                    at the package root (do not rely on implicit cwd).
+#   - ${LAMBDA_TASK_ROOT}/python  -> vendored dependencies unpacked next to this file.
+export PYTHONPATH="${LAMBDA_TASK_ROOT}:${LAMBDA_TASK_ROOT}/python:${PYTHONPATH:-}"
+
+# Region is fixed for the demo; config.yaml also pins aws_region_name.
+export AWS_REGION="${AWS_REGION:-ap-southeast-2}"
+export AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-$AWS_REGION}"
+
+# Start the OpenAI-compatible LiteLLM server. exec so signals/PID pass through
+# cleanly to the Lambda runtime.
+exec python -m gateway_app

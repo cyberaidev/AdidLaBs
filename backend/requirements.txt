@@ -1,0 +1,17 @@
+# AdidLaBs backend Lambda dependencies (Python 3.12).
+# Kept minimal on purpose - handlers use only the stdlib + boto3.
+# boto3/botocore are provided by the Lambda runtime, but pinned here so local
+# runs and CI match. urllib (stdlib) handles Open-Meteo / ip-api.com calls, so
+# there is no requests dependency.
+boto3>=1.34.0
+botocore>=1.34.0
+
+# IANA time-zone database for stdlib ``zoneinfo``. The Lambda Python 3.12 image
+# does not bundle tzdata, so session.py ``_local_time`` would silently degrade
+# Australia/Sydney to UTC in production without this. Bundling it makes local,
+# CI, and production all resolve real local times identically (session.py still
+# falls back to UTC gracefully if it is ever missing).
+tzdata>=2024.1
+
+# Dev/test only.
+pytest>=8.0.0

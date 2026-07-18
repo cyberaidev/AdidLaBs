@@ -1,0 +1,61 @@
+# AdidLaBs AgentCore runtime configuration.
+# Consumed by the bedrock-agentcore-starter-toolkit (`agentcore configure/launch`).
+# Concept demo - no affiliation with adidas AG. All products fictional.
+#
+# One runtime hosts the entire LangGraph mesh (orchestrator + weather + six
+# specialists). The specialists are addressed over A2A in-process for cost; see
+# agents/README.md for the documented tradeoff vs one runtime per agent.
+
+name: adidlabs-agents
+region: ap-southeast-2                # Sydney. Every resource lives here.
+entrypoint: entrypoint.py             # exposes `app` (BedrockAgentCoreApp)
+runtime: python3.12
+
+# The starter toolkit builds/pushes the container from these files.
+requirements: requirements.txt
+
+# Workload identities (AgentCore Identity). Rendered verbatim by the frontend
+# and served by GET /api/agents. Do not invent or renumber these ids.
+workload_identities:
+  - id: adidlabs/orchestrator-9f21
+    route: nova-pro
+  - id: adidlabs/weather-3b7c
+    route: haiku-4.5
+  - id: adidlabs/shoes-4e2a
+    route: haiku-4.5
+  - id: adidlabs/pants-8c1d
+    route: haiku-4.5
+  - id: adidlabs/tshirt-2a9e
+    route: haiku-4.5
+  - id: adidlabs/jumper-6d3f
+    route: haiku-4.5
+  - id: adidlabs/jacket-1e8b
+    route: haiku-4.5
+  - id: adidlabs/accessory-5c4a
+    route: haiku-4.5
+
+# Model access is via LiteLLM routes only - never a raw Bedrock model id.
+# LiteLLM maps these route names to APAC cross-region inference profiles.
+model_routes:
+  nova-pro: bedrock/apac.amazon.nova-pro-v1:0
+  haiku-4.5: bedrock/apac.anthropic.claude-haiku-4-5-20251001-v1:0
+
+# Environment variables the runtime expects (values injected at deploy time by
+# CloudFormation / the deploy script). Names are the project-wide contract.
+environment:
+  - LITELLM_URL            # IAM-auth function URL of the LiteLLM gateway
+  - KB_ID                  # Bedrock Knowledge Base id (data/setup_kb.py)
+  - CATALOG_TABLE          # adidlabs-catalog
+  - BAG_TABLE              # adidlabs-bag
+  - AGENTCORE_AGENT_ARN    # this runtime's own ARN (for reference/self-id)
+  - DEMO_MODE              # deterministic/seeded behaviour when truthy
+  - TAVILY_API_KEY         # optional; enables Tavily for search_web
+
+# MCP tools exposed by the AgentCore Gateway and consumed by the agents.
+gateway_tools:
+  - get_catalog
+  - get_deals
+  - bag_add
+  - bag_get
+  - search_lab_knowledge
+  - search_web

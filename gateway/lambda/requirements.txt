@@ -1,0 +1,10 @@
+# AdidLaBs — LiteLLM gateway Lambda dependencies (Python 3.12, x86_64)
+# Concept demo — no affiliation with adidas AG. All products fictional.
+#
+# Pinned for reproducible zip builds. Keep this minimal: LiteLLM's proxy extra
+# pulls FastAPI + uvicorn; boto3 provides the Bedrock (SigV4) client LiteLLM
+# uses for the bedrock/* provider. No Postgres, no Redis — the demo proxy is
+# fully stateless.
+litellm[proxy]==1.61.20
+uvicorn==0.34.0
+boto3==1.35.90
