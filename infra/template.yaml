@@ -143,6 +143,15 @@ Parameters:
     Default: ""
     Description: S3 key of the mcp-tools zip (server.py + deps).
 
+  LiteLlmMasterKey:
+    Type: String
+    Default: ""
+    NoEcho: true
+    Description: >-
+      LiteLLM gateway master key (bearer auth on the function URL). Generated
+      by deploy.sh on first deploy and carried forward on updates. When empty
+      the gateway accepts unauthenticated calls (local dev only).
+
   LambdaMemoryMb:
     Type: Number
     Default: 256
@@ -749,14 +758,19 @@ Resources:
                   # apac.* haiku-4.5 profile in ap-southeast-2); Nova Pro is APAC.
                   - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/au.anthropic.claude-haiku-4-5-20251001-v1:0"
                   - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/apac.amazon.nova-pro-v1:0"
-                  # The foundation-model ARNs each profile fans out to (a
-                  # cross-region profile invokes the FM in its member regions on
-                  # your behalf). AU geo: Sydney + Melbourne; APAC geo: SYD/SIN/TYO.
-                  - !Sub "arn:${AWS::Partition}:bedrock:ap-southeast-2::foundation-model/anthropic.claude-haiku-4-5-20251001-v1:0"
-                  - !Sub "arn:${AWS::Partition}:bedrock:ap-southeast-4::foundation-model/anthropic.claude-haiku-4-5-20251001-v1:0"
-                  - !Sub "arn:${AWS::Partition}:bedrock:ap-southeast-2::foundation-model/amazon.nova-pro-v1:0"
-                  - !Sub "arn:${AWS::Partition}:bedrock:ap-southeast-1::foundation-model/amazon.nova-pro-v1:0"
-                  - !Sub "arn:${AWS::Partition}:bedrock:ap-northeast-1::foundation-model/amazon.nova-pro-v1:0"
+                  # The foundation-model ARNs the profiles fan out to. Geo
+                  # profiles invoke the FM in ANY of their member regions (the
+                  # APAC profile reaches ap-south-1, ap-northeast-*, …), so the
+                  # grant is region-wildcarded but stays scoped to exactly the
+                  # two contract models.
+                  - !Sub "arn:${AWS::Partition}:bedrock:*::foundation-model/anthropic.claude-haiku-4-5-20251001-v1:0"
+                  - !Sub "arn:${AWS::Partition}:bedrock:*::foundation-model/amazon.nova-pro-v1:0"
+              # Third-party (Anthropic) Bedrock models are Marketplace-listed:
+              # invocation requires the caller to hold this read-only action
+              # (the model agreement itself is accepted once per account).
+              - Effect: Allow
+                Action: aws-marketplace:ViewSubscriptions
+                Resource: "*"
 
   # ===========================================================================
   # LiteLLM Lambda + function URL (AuthType = AWS_IAM). Defined BEFORE the API
@@ -809,6 +823,17 @@ Resources:
                 if path.endswith("/health") or path == "/":
                     return _resp(200, {"status": "ok", "routes": list(_ROUTES)})
 
+                # LiteLLM-style master-key auth (function URL AuthType=NONE):
+                # AgentCore workload sessions are scope-restricted, so SigV4 to
+                # an AWS_IAM URL is rejected regardless of the role policy —
+                # a bearer key is the portable gateway posture instead.
+                master = os.environ.get("MASTER_KEY", "")
+                if master:
+                    headers = {k.lower(): v for k, v in (event.get("headers") or {}).items()}
+                    supplied = headers.get("authorization", "")
+                    if supplied != f"Bearer {master}":
+                        return _resp(401, {"error": "invalid or missing gateway key"})
+
                 raw = event.get("body") or "{}"
                 try:
                     payload = json.loads(raw)
@@ -851,15 +876,33 @@ Resources:
           AWS_LWA_PORT: "4000"
           PORT: "4000"
           LITELLM_CONFIG_PATH: /var/task/config.yaml
+          # Gateway master key (LiteLLM-style bearer auth on the function URL).
+          MASTER_KEY: !Ref LiteLlmMasterKey
+          LITELLM_MASTER_KEY: !Ref LiteLlmMasterKey
       Tags:
         - { Key: app, Value: adidlabs }
 
+  # AuthType NONE + LiteLLM master-key (bearer) auth in the handler. AWS_IAM
+  # was the first choice, but AgentCore runtime workload sessions are
+  # scope-restricted: their SigV4 requests are rejected at the URL even when
+  # the execution role holds lambda:InvokeFunctionUrl. A gateway key is the
+  # standard LiteLLM posture and works from any caller that holds the key.
   LiteLlmUrl:
     Type: AWS::Lambda::Url
     Properties:
       TargetFunctionArn: !GetAtt LiteLlmFunction.Arn
-      AuthType: AWS_IAM
+      AuthType: NONE
       InvokeMode: BUFFERED
+
+  # AuthType NONE still requires a public-invoke resource policy; the handler
+  # enforces the master key.
+  LiteLlmPublicInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref LiteLlmFunction
+      Action: lambda:InvokeFunctionUrl
+      Principal: "*"
+      FunctionUrlAuthType: NONE
 
   # Resource-policy half of the LiteLLM function-URL grant. AWS_IAM function URLs
   # require BOTH the caller's identity policy (lambda:InvokeFunctionUrl — see

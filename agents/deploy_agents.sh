@@ -89,6 +89,7 @@ LAUNCH_ENVS=(
   --env "DEMO_MODE=${DEMO_MODE}"
 )
 [ -n "${TAVILY_API_KEY}" ] && LAUNCH_ENVS+=( --env "TAVILY_API_KEY=${TAVILY_API_KEY}" )
+[ -n "${LITELLM_API_KEY:-}" ] && LAUNCH_ENVS+=( --env "LITELLM_API_KEY=${LITELLM_API_KEY}" )
 agentcore launch --auto-update-on-conflict "${LAUNCH_ENVS[@]}"
 
 # Resolve the runtime ARN via boto3 (aws-cli builds older than mid-2025 lack

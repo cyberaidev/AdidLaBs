@@ -176,6 +176,22 @@ deploy_cfn() {
     fi
   done
 
+  # LiteLLM gateway master key: NoEcho params read back as '****', so the key
+  # is persisted in SSM on first generation and reused from there. Agents get
+  # it at launch (LITELLM_API_KEY) for bearer auth on the gateway URL.
+  LITELLM_MASTER_KEY="${LITELLM_MASTER_KEY:-$(aws ssm get-parameter \
+    --name "/adidlabs/${STACK_NAME}/litellm-master-key" --with-decryption \
+    --region "$REGION" --query 'Parameter.Value' --output text 2>/dev/null || true)}"
+  if [ -z "$LITELLM_MASTER_KEY" ] || [ "$LITELLM_MASTER_KEY" = "None" ]; then
+    LITELLM_MASTER_KEY="sk-adidlabs-$(openssl rand -hex 24)"
+    aws ssm put-parameter --name "/adidlabs/${STACK_NAME}/litellm-master-key" \
+      --type SecureString --value "$LITELLM_MASTER_KEY" --overwrite \
+      --region "$REGION" >/dev/null
+    log "Generated LiteLLM master key (stored in SSM SecureString)."
+  fi
+  export LITELLM_MASTER_KEY
+  param_overrides+=( "LiteLlmMasterKey=$LITELLM_MASTER_KEY" )
+
   # Templates over 51,200 bytes must be uploaded to S3. Keep a small,
   # account/region-scoped deploy bucket for that (cleaned up by teardown.sh).
   local cfn_bucket
@@ -338,6 +354,7 @@ deploy_agents() {
   local runtime_arn
   runtime_arn="$(
     LITELLM_URL="$(cfn_output LiteLLMUrl)" \
+    LITELLM_API_KEY="${LITELLM_MASTER_KEY:-}" \
     KB_ID="${KB_ID:-}" \
     CATALOG_TABLE="$CATALOG_TABLE" BAG_TABLE="$BAG_TABLE" \
     DEMO_MODE=0 \

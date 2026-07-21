@@ -80,6 +80,12 @@ class LLMClient:
 
     def __post_init__(self) -> None:
         self.base_url = (self.base_url or "").rstrip("/")
+        # LiteLLM master-key auth: when LITELLM_API_KEY is set, send it as the
+        # bearer token (also disables SigV4 signing below — the gateway URL is
+        # AuthType NONE with key enforcement in the handler).
+        key = os.environ.get("LITELLM_API_KEY", "")
+        if key and "Authorization" not in self.extra_headers:
+            self.extra_headers["Authorization"] = f"Bearer {key}"
 
     def _endpoint(self) -> str:
         if not self.base_url:
@@ -108,14 +114,24 @@ class LLMClient:
         credentials = session.get_credentials()
         if credentials is None:  # pragma: no cover - no creds in CI
             return {}
+        frozen = credentials.get_frozen_credentials()
+        # One-shot diagnostic: log WHICH identity signs LiteLLM calls (403s at
+        # the function URL are invisible otherwise). Shows in the web terminal.
+        if not getattr(LLMClient, "_identity_logged", False):
+            LLMClient._identity_logged = True
+            try:  # pragma: no cover - runtime-only telemetry
+                import boto3
+                arn = boto3.client("sts").get_caller_identity()["Arn"]
+                print(f"[llm] signing as {arn} session_token={'yes' if frozen.token else 'no'}",
+                      flush=True)
+            except Exception as exc:  # noqa: BLE001
+                print(f"[llm] identity check failed: {exc}", flush=True)
         region = os.environ.get("AWS_REGION", "ap-southeast-2")
         aws_request = botocore.awsrequest.AWSRequest(
             method="POST", url=url, data=data,
             headers={"Content-Type": "application/json"},
         )
-        botocore.auth.SigV4Auth(
-            credentials.get_frozen_credentials(), "lambda", region
-        ).add_auth(aws_request)
+        botocore.auth.SigV4Auth(frozen, "lambda", region).add_auth(aws_request)
         return dict(aws_request.headers)
 
     def chat(
