@@ -233,6 +233,23 @@ def find_gateway_by_name(client, name: str) -> Optional[Dict[str, Any]]:
     return None
 
 
+def wait_gateway_ready(client, gateway_id: str, timeout: int = 300) -> str:
+    """Gateway creation is asynchronous — targets can only be attached once the
+    gateway leaves CREATING. Poll until READY; return the gateway URL."""
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        detail = client.get_gateway(gatewayIdentifier=gateway_id)
+        status = detail.get("status")
+        if status == "READY":
+            return detail.get("gatewayUrl", "")
+        if status in ("FAILED", "DELETE_UNSUCCESSFUL"):
+            raise RuntimeError(
+                f"gateway {gateway_id} entered status {status}: {detail.get('statusReasons')}")
+        print(f"[gw] gateway {gateway_id} is {status}; waiting…")
+        time.sleep(5)
+    raise TimeoutError(f"gateway {gateway_id} not READY within {timeout}s")
+
+
 def ensure_gateway(client, role_arn: str, discovery_url: str,
                    allowed_client: str) -> Tuple[str, str]:
     """Get-or-create the MCP gateway. Returns (gateway_id, gateway_url)."""
@@ -242,8 +259,7 @@ def ensure_gateway(client, role_arn: str, discovery_url: str,
     if existing:
         gid = existing.get("gatewayId") or existing.get("gatewayIdentifier")
         print(f"[gw] gateway exists: {gid}")
-        detail = client.get_gateway(gatewayIdentifier=gid)
-        return gid, detail.get("gatewayUrl", "")
+        return gid, wait_gateway_ready(client, gid)
 
     print(f"[gw] creating gateway: {GATEWAY_NAME}")
     last_exc: Optional[Exception] = None
@@ -262,7 +278,8 @@ def ensure_gateway(client, role_arn: str, discovery_url: str,
                     }
                 },
             )
-            return resp["gatewayId"], resp.get("gatewayUrl", "")
+            gid = resp["gatewayId"]
+            return gid, wait_gateway_ready(client, gid)
         except ClientError as exc:  # pragma: no cover - retry path
             last_exc = exc
             print(f"[gw] create_gateway attempt {attempt + 1} failed: {exc}; retrying…",
@@ -322,8 +339,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     gateway_client = _gateway_client()
     explicit = _resolve_gateway_id(args.gateway_id)
     if explicit:
-        gateway_id, gateway_url = explicit, ""
+        gateway_id = explicit
         print(f"[gw] using provided gateway id: {gateway_id}")
+        gateway_url = wait_gateway_ready(gateway_client, gateway_id)
     else:
         role_arn = ensure_gateway_role(_iam_client(), account_id, tools_fn_arn)
         gateway_id, gateway_url = ensure_gateway(

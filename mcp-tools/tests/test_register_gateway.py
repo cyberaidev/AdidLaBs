@@ -29,7 +29,11 @@ class FakeGatewayClient:
         return _P()
 
     def get_gateway(self, gatewayIdentifier):
-        return {"gatewayId": gatewayIdentifier, "gatewayUrl": f"https://{gatewayIdentifier}.example"}
+        return {
+            "gatewayId": gatewayIdentifier,
+            "gatewayUrl": f"https://{gatewayIdentifier}.example",
+            "status": "READY",
+        }
 
     def list_gateway_targets(self, gatewayIdentifier):
         return {"items": self.targets}
@@ -100,6 +104,28 @@ def test_resolve_gateway_id_precedence(reg, monkeypatch):
     monkeypatch.delenv("AGENTCORE_GATEWAY_ID", raising=False)
     monkeypatch.delenv("GATEWAY_ID", raising=False)
     assert reg._resolve_gateway_id(None) is None
+
+
+def test_wait_gateway_ready_polls_until_ready(reg, monkeypatch):
+    monkeypatch.setattr(reg.time, "sleep", lambda s: None)
+    statuses = iter(["CREATING", "CREATING", "READY"])
+
+    class _C:
+        def get_gateway(self, gatewayIdentifier):
+            return {"status": next(statuses), "gatewayUrl": "https://gw.example"}
+
+    assert reg.wait_gateway_ready(_C(), "gw-1") == "https://gw.example"
+
+
+def test_wait_gateway_ready_raises_on_failed(reg, monkeypatch):
+    monkeypatch.setattr(reg.time, "sleep", lambda s: None)
+
+    class _C:
+        def get_gateway(self, gatewayIdentifier):
+            return {"status": "FAILED", "statusReasons": ["boom"]}
+
+    with pytest.raises(RuntimeError):
+        reg.wait_gateway_ready(_C(), "gw-1")
 
 
 def test_dry_run_calls_no_aws(reg, monkeypatch, capsys):
