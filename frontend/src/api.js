@@ -117,8 +117,15 @@ export function addToBag(token, item) {
       price: item.deal_price ?? item.price,
       image: item.image,
       qty: 1,
-      ...(item.ai_pick ? { ai_pick: true } : {}),
+      ...(item.ai_pick ? { ai_pick: true, ai_note: item.ai_note || "AI CHOICE" } : {}),
     },
+  });
+}
+
+// Full category list for manual browsing (public). Returns { count, items }.
+export function getCatalog(category, limit = 60) {
+  return request("GET", "/api/catalog", {
+    query: category ? { category, limit } : { limit },
   });
 }
 

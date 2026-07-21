@@ -1,8 +1,8 @@
 import { COPY } from "../copy.js";
 import { Drawer } from "./Drawer.jsx";
 
-function euro(n) {
-  return `€${Number(n).toFixed(2)}`;
+function usd(n) {
+  return `$${Number(n).toFixed(2)}`;
 }
 
 // Bag drawer (§5.15). Rows from bag state; remove via DELETE /api/bag (App handler).
@@ -42,10 +42,12 @@ export function BagDrawer({ items, onRemove, onClose }) {
               <div className="line-item-info">
                 <span className="line-item-title">
                   {item.title}
-                  {item.ai_pick && <span className="ai-badge">AI CHOICE</span>}
+                  {item.ai_pick && (
+                    <span className="ai-badge">{item.ai_note || "AI CHOICE"}</span>
+                  )}
                 </span>
                 <span className="line-item-price">
-                  {euro(item.deal_price ?? item.price)}
+                  {usd(item.deal_price ?? item.price)}
                 </span>
                 <button
                   type="button"
@@ -64,7 +66,7 @@ export function BagDrawer({ items, onRemove, onClose }) {
         <div className="drawer-foot">
           <div className="subtotal-row">
             <span>{COPY.bag.subtotal}</span>
-            <span>{euro(subtotal)}</span>
+            <span>{usd(subtotal)}</span>
           </div>
           <button
             type="button"

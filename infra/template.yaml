@@ -469,6 +469,30 @@ Resources:
                   - !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/bedrock-agentcore/runtimes/*"
                   - !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/bedrock-agentcore/runtimes/*:*"
 
+  # catalog: read-only scan of the catalog table for the browse drawers.
+  CatalogLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "adidlabs-catalog-role-${AWS::StackName}-${AWS::Region}"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: lambda.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+      Policies:
+        - PolicyName: read-catalog-table
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:Scan
+                  - dynamodb:GetItem
+                Resource: !GetAtt CatalogTableResource.Arn
+
   # telemetry: read-only Bedrock usage metrics (CloudWatch metrics have no
   # resource-level scoping, so the read actions take *).
   TelemetryLambdaRole:
@@ -1237,6 +1261,39 @@ Resources:
       Tags:
         - { Key: app, Value: adidlabs }
 
+  CatalogFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "adidlabs-api-catalog-${AWS::StackName}"
+      Description: GET /api/catalog — full category listings for the browse drawers.
+      Role: !GetAtt CatalogLambdaRole.Arn
+      Runtime: python3.12
+      Timeout: 10
+      MemorySize: !Ref LambdaMemoryMb
+      Handler: !If [UseApiS3Code, catalog.handler, index.handler]
+      Environment:
+        Variables:
+          CATALOG_TABLE: !Ref CatalogTable
+      Code: !If
+        - UseApiS3Code
+        - { S3Bucket: !Ref ArtifactsBucket, S3Key: !Ref ApiCodeS3Key }
+        - ZipFile: |
+            import json
+
+            def handler(event, context):
+                return {
+                    "statusCode": 200,
+                    "headers": {"Content-Type": "application/json",
+                                "Access-Control-Allow-Origin": "*"},
+                    "body": json.dumps({
+                        "category": None, "count": 0, "currency": "USD",
+                        "items": [],
+                        "note": "Inline bootstrap — deploy the backend package "
+                                "(ArtifactsBucket/ApiCodeS3Key) for the catalog."}),
+                }
+      Tags:
+        - { Key: app, Value: adidlabs }
+
   TelemetryFunction:
     Type: AWS::Lambda::Function
     Properties:
@@ -1324,6 +1381,14 @@ Resources:
       IntegrationUri: !GetAtt TelemetryFunction.Arn
       PayloadFormatVersion: "2.0"
 
+  CatalogIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref HttpApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !GetAtt CatalogFunction.Arn
+      PayloadFormatVersion: "2.0"
+
   # --- Routes ----------------------------------------------------------------
   # session, weather, agents are pre-auth (session/weather/agents are fetched
   # right after login but the JWT authorizer is applied to bag + chat where
@@ -1357,6 +1422,14 @@ Resources:
       ApiId: !Ref HttpApi
       RouteKey: "GET /api/telemetry"
       Target: !Sub "integrations/${TelemetryIntegration}"
+
+  # catalog — public: fictional demo items for the browse drawers.
+  CatalogRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: "GET /api/catalog"
+      Target: !Sub "integrations/${CatalogIntegration}"
 
   # bag (all verbs) — JWT-protected; user_id is derived from the token sub.
   BagGetRoute:
@@ -1469,6 +1542,14 @@ Resources:
       Action: lambda:InvokeFunction
       Principal: apigateway.amazonaws.com
       SourceArn: !Sub "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*/*/api/telemetry"
+
+  CatalogInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref CatalogFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*/*/api/catalog"
 
 # -----------------------------------------------------------------------------
 # Outputs — the five contractual outputs PLUS the ids deploy.sh / teardown.sh

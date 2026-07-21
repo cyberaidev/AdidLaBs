@@ -132,11 +132,16 @@ def _add_item(user_id: str, body: dict[str, Any]) -> dict[str, Any]:
         set_clauses.append("image = :img")
         values[":img"] = body["image"]
 
-    # AI-choice provenance: rows the stylist mesh added automatically carry
-    # ai_pick=true so the bag UI can tag them and the user can curate.
+    # AI provenance: rows the stylist mesh added automatically carry
+    # ai_pick=true (and an optional ai_note label such as "AI CHOICE" for the
+    # login auto-kit or "AI ADVICE" for chat-requested adds) so the bag UI can
+    # tag them and the user can curate.
     if "ai_pick" in body:
         set_clauses.append("ai_pick = :ai")
         values[":ai"] = bool(body.get("ai_pick"))
+    if body.get("ai_note"):
+        set_clauses.append("ai_note = :an")
+        values[":an"] = str(body["ai_note"])[:40]
 
     table = _table()
     # Accumulate qty if the row already exists; otherwise this initialises it.

@@ -11,7 +11,7 @@ Rows API:
         &config=default&split=train&offset=<n>&length=<=100>
 
 We paginate politely (100 rows/page, small sleep, per-request timeout), map each
-row to one of the six contract categories (:mod:`category_map`), synthesize EUR
+row to one of the six contract categories (:mod:`category_map`), synthesize USD
 prices/deals, and require a **per-category minimum count** (not just presence) so
 the sparse jumper/jacket buckets are not starved — we keep paging deeper until
 every category clears its floor, then trim back toward ``target``. On ANY failure

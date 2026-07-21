@@ -1,8 +1,8 @@
 import { COPY } from "../copy.js";
 import { HeartIcon } from "./icons.jsx";
 
-function euro(n) {
-  return `€${Number(n).toFixed(2)}`;
+function usd(n) {
+  return `$${Number(n).toFixed(2)}`;
 }
 
 // Single catalog tile (§5.8): image, category tag, heart wishlist toggle, title,
@@ -51,12 +51,12 @@ export function ProductCard({ item, hearted, onToggleHeart, onAddToBag }) {
         <div className="price-row">
           {hasDeal ? (
             <>
-              <span className="price-strike">{euro(item.price)}</span>
-              <span className="price-deal">{euro(item.deal_price)}</span>
+              <span className="price-strike">{usd(item.price)}</span>
+              <span className="price-deal">{usd(item.deal_price)}</span>
               <span className="deal-tag">-{pct}%</span>
             </>
           ) : (
-            <span className="price">{euro(item.price)}</span>
+            <span className="price">{usd(item.price)}</span>
           )}
         </div>
         <button type="button" className="add-bag" onClick={() => onAddToBag(item)}>

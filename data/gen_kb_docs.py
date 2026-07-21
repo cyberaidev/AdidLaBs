@@ -205,7 +205,7 @@ def product_stories(items: List[Dict[str, Any]]) -> str:
         "",
         "Short narrative blurbs per product, grouped by category. Agents retrieve "
         "these to add colour and justify weather-matched picks. Prices are "
-        "synthetic EUR; all products fictional.",
+        "synthetic USD; all products fictional.",
         "",
     ]
 
@@ -246,10 +246,10 @@ def product_stories(items: List[Dict[str, Any]]) -> str:
             original = it.get("original_price", price)
             deal = ""
             if it.get("on_deal"):
-                deal = (f" On deal at **EUR {price}** "
-                        f"(was EUR {original}, -{it.get('discount_pct', 0)}%).")
+                deal = (f" On deal at **USD {price}** "
+                        f"(was USD {original}, -{it.get('discount_pct', 0)}%).")
             else:
-                deal = f" Priced at **EUR {price}**."
+                deal = f" Priced at **USD {price}**."
             lines.append(f"- `{it['item_id']}` — {blurb}{deal}")
         lines.append("")
 

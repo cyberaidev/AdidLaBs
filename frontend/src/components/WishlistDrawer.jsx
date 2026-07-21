@@ -1,8 +1,8 @@
 import { COPY } from "../copy.js";
 import { Drawer } from "./Drawer.jsx";
 
-function euro(n) {
-  return `€${Number(n).toFixed(2)}`;
+function usd(n) {
+  return `$${Number(n).toFixed(2)}`;
 }
 
 // Wishlist drawer (§5.15). Hearted items; move-to-bag posts POST /api/bag (App handler).
@@ -33,7 +33,7 @@ export function WishlistDrawer({ items, onMoveToBag, onRemove, onClose }) {
               <div className="line-item-info">
                 <span className="line-item-title">{item.title}</span>
                 <span className="line-item-price">
-                  {euro(item.deal_price ?? item.price)}
+                  {usd(item.deal_price ?? item.price)}
                 </span>
                 <div style={{ display: "flex", gap: "8px" }}>
                   <button

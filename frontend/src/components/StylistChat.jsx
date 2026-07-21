@@ -43,6 +43,9 @@ function contextLine(session, weather) {
 // a weather-agent context report as soon as the session loads, user/agent bubbles,
 // composer POSTs /api/chat, and an 8-square "thinking" row. History lives in App
 // state (messages/onMessages) so closing the drawer never loses the conversation.
+// "add a rain jacket to my bag", "put shoes in the bag", "bag it" …
+const ADD_INTENT = /\b(add|put|drop|throw|stick|bag it|to (?:my|the) bag|buy)\b/i;
+
 export function StylistChat({
   token,
   session,
@@ -50,6 +53,7 @@ export function StylistChat({
   agents,
   messages,
   onMessages,
+  onAiAdd,
   onClose,
 }) {
   const setMessages = onMessages;
@@ -99,6 +103,23 @@ export function StylistChat({
       ...m,
       { role: "agent", agent: res.agent, wid: res.wid, text: res.reply },
     ]);
+    // Chat-driven shopping: when the user asks to add something, the
+    // orchestrator's picks for that turn go straight into the bag, tagged
+    // AI ADVICE so they read differently from the login auto-kit.
+    if (onAiAdd && ADD_INTENT.test(text) && res.picks?.length) {
+      const added = onAiAdd(res.picks.slice(0, 4), "AI ADVICE");
+      if (added) {
+        setMessages((m) => [
+          ...m,
+          {
+            role: "agent",
+            agent: "ORCHESTRATOR",
+            wid: "adidlabs/orchestrator-9f21",
+            text: `Done — ${added} item${added === 1 ? "" : "s"} added to your bag, tagged AI ADVICE. Open the bag to keep or remove them.`,
+          },
+        ]);
+      }
+    }
     setThinking(false);
   }
 

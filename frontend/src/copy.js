@@ -28,6 +28,7 @@ export const COPY = {
     heading: "PICKED FOR YOUR FORECAST",
     sub: "Weather-matched by the stylist agents.",
     addToBag: "ADD TO BAG",
+    browseLabel: "BROWSE THE FULL CATALOG:",
   },
 
   agentsPanel: {
@@ -92,7 +93,7 @@ export const COPY = {
     heading: "LITELLM GATEWAY",
     sub: "Model telemetry via Bedrock",
     empty: "No model traffic in this window yet — chat with the stylist to generate some.",
-    foot: "Live CloudWatch AWS/Bedrock metrics · routes nova-pro + haiku-4.5 (APAC inference profiles) + Titan embeddings (KB) · refreshes every 15s.",
+    foot: "Live CloudWatch AWS/Bedrock metrics · routes nova-pro + haiku-4.5 (APAC inference profiles) + Titan embeddings (KB) · refreshes every 60s (CloudWatch aggregates lag a few minutes).",
   },
   wishlist: {
     title: "WISHLIST",

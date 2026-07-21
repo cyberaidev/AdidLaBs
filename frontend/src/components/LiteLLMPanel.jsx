@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { COPY } from "../copy.js";
 import { getTelemetry } from "../api.js";
 
-const POLL_MS = 15000;
+const POLL_MS = 60000;
 
 function n(x) {
   return Number(x || 0).toLocaleString();

@@ -237,9 +237,9 @@ def _canned_reply(message: str, session: dict[str, Any]) -> dict[str, Any]:
         "Here's a weather-matched look my category agents pulled together:",
     ]
     for p in picks:
-        price_txt = f"€{p['price']:.0f}"
+        price_txt = f"${p['price']:.0f}"
         if p.get("deal"):
-            price_txt = f"~~€{p['original_price']:.0f}~~ €{p['price']:.0f} (-{p['discount_pct']}%)"
+            price_txt = f"~~${p['original_price']:.0f}~~ ${p['price']:.0f} (-{p['discount_pct']}%)"
         reply_lines.append(f"- {p['category'].title()}: {p['title']} - {price_txt}")
     tail = " ".join(t for t in (warmth_note, rain_note) if t)
     if tail:

@@ -212,9 +212,9 @@ def map_category(row: Dict[str, Any]) -> Optional[str]:
 # --------------------------------------------------------------------------- #
 # Deterministic synthetic pricing. We hash the item id so the same row always
 # gets the same price/deal across runs (idempotent seeding), while different
-# categories occupy different, sensible EUR bands. Prices are fictional.
+# categories occupy different, sensible USD bands. Prices are fictional.
 # --------------------------------------------------------------------------- #
-# (min, max) EUR base-price band per category.
+# (min, max) USD base-price band per category.
 _PRICE_BANDS: Dict[str, tuple[int, int]] = {
     "shoes": (49, 189),
     "pants": (29, 129),
@@ -235,12 +235,12 @@ def _hash_int(seed: str) -> int:
 
 
 def synthesize_price(item_id: str, category: str) -> Dict[str, Any]:
-    """Deterministically synthesize an EUR price + optional deal for an item.
+    """Deterministically synthesize an USD price + optional deal for an item.
 
     Returns a dict with:
-        price          -> float, the current sell price in EUR
+        price          -> float, the current sell price in USD
         original_price -> float, the pre-deal price (== price when no deal)
-        currency       -> "EUR"
+        currency       -> "USD"
         on_deal        -> bool
         discount_pct   -> int (0 when no deal)
 
@@ -266,7 +266,7 @@ def synthesize_price(item_id: str, category: str) -> Dict[str, Any]:
     return {
         "price": price,
         "original_price": original,
-        "currency": "EUR",
+        "currency": "USD",
         "on_deal": on_deal,
         "discount_pct": discount_pct,
     }

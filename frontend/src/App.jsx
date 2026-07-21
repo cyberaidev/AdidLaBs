@@ -27,6 +27,38 @@ import { BagDrawer } from "./components/BagDrawer.jsx";
 import { WishlistDrawer } from "./components/WishlistDrawer.jsx";
 import { TerminalDrawer } from "./components/TerminalDrawer.jsx";
 import { LiteLLMPanel } from "./components/LiteLLMPanel.jsx";
+import { AccountDrawer } from "./components/AccountDrawer.jsx";
+import { CategoryDrawer } from "./components/CategoryDrawer.jsx";
+
+// Decode a JWT payload (base64url) for display-only claims (email, sub).
+function parseJwt(token) {
+  try {
+    const payload = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+    return JSON.parse(atob(payload));
+  } catch {
+    return {};
+  }
+}
+
+// Map an orchestrator pick (a raw catalog row: name/original_price/price/…)
+// to the SPA item shape, tagged with its AI provenance label.
+function pickToRow(pick, index, label) {
+  const category = String(pick.category || "pick").toUpperCase();
+  const title = pick.title || pick.name || `Forecast pick ${index + 1}`;
+  const original = Number(pick.original_price ?? pick.price ?? 0);
+  const current = Number(pick.price ?? original) || original;
+  const onDeal = current > 0 && current < original;
+  return {
+    item_id: pick.item_id || `ai-${category.toLowerCase()}-${index + 1}`,
+    title,
+    category,
+    price: onDeal ? original : current,
+    deal_price: onDeal ? current : null,
+    image: productTile(category, title),
+    ai_pick: true,
+    ai_note: label,
+  };
+}
 
 // Roster with standby status, used until GET /api/agents responds (or as fallback).
 const STANDBY_ROSTER = COPY.agents.map((a) => ({ ...a, status: "standby" }));
@@ -53,6 +85,8 @@ export default function App() {
   // Mutually-exclusive drawers (§7).
   const [drawer, setDrawer] = useState(null); // 'chat' | 'arch' | 'wishlist' | 'bag' | 'terminal' | null
   const [terminalAgent, setTerminalAgent] = useState(null); // roster entry or null (= all sessions)
+  const [browseCategory, setBrowseCategory] = useState(null); // 'SHOES' … for the browse drawer
+  const [userEmail, setUserEmail] = useState("");
 
   // Chat history lives here (not in the drawer) so closing and reopening the
   // stylist keeps the whole conversation for the session.
@@ -105,8 +139,9 @@ export default function App() {
 
   // Post-login bootstrap: session, weather, agents, bag; open chat; flip agents.
   const onAuthed = useCallback(
-    async ({ token: tok }) => {
+    async ({ token: tok, email }) => {
       setToken(tok);
+      setUserEmail(email || parseJwt(tok).email || "");
       setAuthed(true);
       setShowLogin(false);
       setDrawer("chat"); // stylist chat auto-opens (§5.12)
@@ -151,26 +186,8 @@ export default function App() {
       session: sess,
       weather: wx,
     });
-    const picks = (res.picks || []).slice(0, 6);
-    if (!picks.length) return;
-    const rows = picks.map((p, i) => {
-      const category = String(p.category || "pick").toUpperCase();
-      const title = p.title || `Forecast pick ${i + 1}`;
-      return {
-        item_id: p.item_id || `ai-${category.toLowerCase()}-${i + 1}`,
-        title,
-        category,
-        price: p.price ?? 0,
-        deal_price: null,
-        image: productTile(category, title),
-        ai_pick: true,
-      };
-    });
-    rows.forEach((row) => addToBag(tok, row));
-    setBag((prev) => {
-      const have = new Set(prev.map((r) => r.item_id));
-      return [...prev, ...rows.filter((r) => !have.has(r.item_id))];
-    });
+    const added = aiAddPicks(res.picks || [], "AI CHOICE", tok);
+    if (!added) return;
     setChatMessages((m) => [
       ...m,
       {
@@ -178,11 +195,31 @@ export default function App() {
         agent: "ORCHESTRATOR",
         wid: "adidlabs/orchestrator-9f21",
         text:
-          `I pre-filled your bag with ${rows.length} AI-matched pieces for this ` +
+          `I pre-filled your bag with ${added} AI-matched pieces for this ` +
           `forecast — each is tagged AI CHOICE in the bag. Remove any, or add ` +
           `your own picks from the rail.`,
       },
     ]);
+  }
+
+  // Shared AI-add path: maps orchestrator picks to bag rows (correct catalog
+  // pricing), persists them, merges local state, and returns how many were
+  // added. Used by the login auto-kit ("AI CHOICE") and by chat-requested
+  // adds ("AI ADVICE").
+  function aiAddPicks(picks, label, tok = token) {
+    const rows = (picks || [])
+      .slice(0, 6)
+      .map((p, i) => pickToRow(p, i, label));
+    if (!rows.length) return 0;
+    rows.forEach((row) => tok && addToBag(tok, row));
+    let addedCount = 0;
+    setBag((prev) => {
+      const have = new Set(prev.map((r) => r.item_id));
+      const fresh = rows.filter((r) => !have.has(r.item_id));
+      addedCount = fresh.length;
+      return [...prev, ...fresh];
+    });
+    return rows.length;
   }
 
   function hydrate(rows, cat) {
@@ -230,10 +267,28 @@ export default function App() {
     setWishlist((prev) => prev.filter((i) => i.item_id !== itemId));
   }
 
-  // Account icon: opens login (or registration gate if not yet registered).
+  // Account icon: account drawer when signed in, login otherwise.
   function openAccount() {
     if (!registered) return; // gate is already blocking
-    if (!authed) setShowLogin(true);
+    if (!authed) {
+      setShowLogin(true);
+      return;
+    }
+    setDrawer("account");
+  }
+
+  // Sign out: clear all session state back to the registered-but-logged-out view.
+  function signOut() {
+    setAuthed(false);
+    setToken(null);
+    setUserEmail("");
+    setSession(null);
+    setWeather(null);
+    setBag([]);
+    setDrawer(null);
+    aiKitRef.current = false;
+    setAgents(STANDBY_ROSTER);
+    setShowLogin(true);
   }
 
   // Chat icon: reopen the stylist drawer (login first when signed out).
@@ -282,6 +337,10 @@ export default function App() {
           wishlist={wishlist}
           onToggleHeart={toggleHeart}
           onAddToBag={handleAddToBag}
+          onBrowse={(cat) => {
+            setBrowseCategory(cat);
+            setDrawer("browse");
+          }}
         />
         <AgentsPanel agents={agents} onTerminal={openTerminal} />
         <LiteLLMPanel />
@@ -324,6 +383,7 @@ export default function App() {
           agents={agents}
           messages={chatMessages}
           onMessages={setChatMessages}
+          onAiAdd={(picks, label) => aiAddPicks(picks, label)}
           onClose={() => setDrawer(null)}
         />
       )}
@@ -347,6 +407,21 @@ export default function App() {
         <TerminalDrawer
           token={token}
           agent={terminalAgent}
+          onClose={() => setDrawer(null)}
+        />
+      )}
+      {drawer === "browse" && browseCategory && (
+        <CategoryDrawer
+          category={browseCategory}
+          onAddToBag={handleAddToBag}
+          onClose={() => setDrawer(null)}
+        />
+      )}
+      {drawer === "account" && authed && (
+        <AccountDrawer
+          email={userEmail}
+          claims={parseJwt(token || "")}
+          onSignOut={signOut}
           onClose={() => setDrawer(null)}
         />
       )}

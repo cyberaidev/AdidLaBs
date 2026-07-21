@@ -89,6 +89,35 @@ class LLMClient:
             )
         return f"{self.base_url}/chat/completions"
 
+    @staticmethod
+    def _sigv4_headers(url: str, data: bytes) -> dict[str, str]:
+        """SigV4-sign a POST to the IAM-auth LiteLLM function URL.
+
+        Uses botocore (always present in the runtime alongside boto3) with the
+        execution role's credentials, service name ``lambda``. Returns an empty
+        dict when botocore or credentials are unavailable (local/offline runs
+        fall through to the deterministic templates as before).
+        """
+        try:  # pragma: no cover - exercised in the runtime, stubbed in tests
+            import botocore.auth
+            import botocore.awsrequest
+            import botocore.session
+        except Exception:  # noqa: BLE001
+            return {}
+        session = botocore.session.get_session()
+        credentials = session.get_credentials()
+        if credentials is None:  # pragma: no cover - no creds in CI
+            return {}
+        region = os.environ.get("AWS_REGION", "ap-southeast-2")
+        aws_request = botocore.awsrequest.AWSRequest(
+            method="POST", url=url, data=data,
+            headers={"Content-Type": "application/json"},
+        )
+        botocore.auth.SigV4Auth(
+            credentials.get_frozen_credentials(), "lambda", region
+        ).add_auth(aws_request)
+        return dict(aws_request.headers)
+
     def chat(
         self,
         route: str,
@@ -126,9 +155,14 @@ class LLMClient:
             payload["response_format"] = response_format
 
         data = json.dumps(payload).encode("utf-8")
+        endpoint = self._endpoint()
         headers = {"Content-Type": "application/json", **self.extra_headers}
+        # The LiteLLM function URL uses AWS_IAM auth: sign the request with
+        # SigV4 unless the caller supplied its own Authorization header.
+        if "Authorization" not in headers:
+            headers = {**self._sigv4_headers(endpoint, data), **headers}
         request = urllib.request.Request(
-            self._endpoint(), data=data, headers=headers, method="POST"
+            endpoint, data=data, headers=headers, method="POST"
         )
         try:
             with urllib.request.urlopen(request, timeout=self.timeout) as resp:

@@ -362,6 +362,33 @@ deploy_agents() {
     --no-fail-on-empty-changeset \
     --parameter-overrides "AgentCoreAgentArn=$runtime_arn" "KbId=${KB_ID:-}"
 
+  # Let the runtime call the IAM-auth LiteLLM function URL: llm.py signs its
+  # requests with SigV4 using the runtime execution role, so that role needs
+  # lambda:InvokeFunctionUrl on the LiteLLM function. The role is created by
+  # the agentcore starter toolkit, so we resolve it from the runtime and
+  # attach an inline policy here.
+  local runtime_role litellm_arn
+  runtime_role="$(AWS_REGION="$REGION" RUNTIME_ARN="$runtime_arn" python3 - <<'PY'
+import os
+import boto3
+client = boto3.client("bedrock-agentcore-control", region_name=os.environ["AWS_REGION"])
+runtime_id = os.environ["RUNTIME_ARN"].rsplit("/", 1)[-1]
+role_arn = client.get_agent_runtime(agentRuntimeId=runtime_id).get("roleArn", "")
+print(role_arn.rsplit("/", 1)[-1] if role_arn else "")
+PY
+)"
+  litellm_arn="$(aws lambda get-function --function-name "adidlabs-litellm-${STACK_NAME}" \
+                  --region "$REGION" --query 'Configuration.FunctionArn' --output text 2>/dev/null || true)"
+  if [ -n "$runtime_role" ] && [ -n "$litellm_arn" ] && [ "$litellm_arn" != "None" ]; then
+    log "Granting $runtime_role invoke on the LiteLLM function URL"
+    aws iam put-role-policy --role-name "$runtime_role" \
+      --policy-name adidlabs-invoke-litellm-url \
+      --policy-document "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":\"lambda:InvokeFunctionUrl\",\"Resource\":\"$litellm_arn\",\"Condition\":{\"StringEquals\":{\"lambda:FunctionUrlAuthType\":\"AWS_IAM\"}}}]}"
+    ok "Runtime role can now reach LiteLLM (SigV4)."
+  else
+    log "WARNING: could not resolve runtime role or LiteLLM ARN — LLM calls will use template fallbacks."
+  fi
+
   # Point /api/chat at the live mesh: AGENTCORE_AGENT_ARN set, DEMO_MODE off.
   local api_fn existing merged
   api_fn="$(cfn_output ApiHandlerFunctionName)"

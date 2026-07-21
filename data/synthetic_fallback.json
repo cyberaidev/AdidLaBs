@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "note": "Handwritten fictional fallback catalog for AdidLaBs. Used when the HuggingFace datasets-server is unreachable. All product names are invented; no adidas trademarks. Prices are synthetic EUR. Concept demo - no affiliation with adidas AG. All products fictional.",
+    "note": "Handwritten fictional fallback catalog for AdidLaBs. Used when the HuggingFace datasets-server is unreachable. All product names are invented; no adidas trademarks. Prices are synthetic USD. Concept demo - no affiliation with adidas AG. All products fictional.",
     "count": 40,
     "categories": [
       "shoes",
@@ -23,7 +23,7 @@
       "article_type": "sports shoes",
       "price": 129.95,
       "original_price": 129.95,
-      "currency": "EUR",
+      "currency": "USD",
       "on_deal": false,
       "discount_pct": 0,
       "source": "synthetic_fallback"
@@ -39,7 +39,7 @@
       "article_type": "sneakers",
       "price": 71.96,
       "original_price": 89.95,
-      "currency": "EUR",
+      "currency": "USD",
       "on_deal": true,
       "discount_pct": 20,
       "source": "synthetic_fallback"
@@ -55,7 +55,7 @@
       "article_type": "boots",
       "price": 159.0,
       "original_price": 159.0,
-      "currency": "EUR",
+      "currency": "USD",
       "on_deal": false,
       "discount_pct": 0,
       "source": "synthetic_fallback"
@@ -71,7 +71,7 @@
       "article_type": "sandals",
       "price": 34.99,
       "original_price": 49.99,
-      "currency": "EUR",
+      "currency": "USD",
       "on_deal": true,
       "discount_pct": 30,
       "source": "synthetic_fallback"
@@ -87,7 +87,7 @@
       "article_type": "flats",
       "price": 79.95,
       "original_price": 79.95,
-      "currency": "EUR",
+      "currency": "USD",
       "on_deal": false,
       "discount_pct": 0,
       "source": "synthetic_fallback"
@@ -103,7 +103,7 @@
       "article_type": "boots",
       "price": 143.2,
       "original_price": 179.0,
-      "currency": "EUR",
+      "currency": "USD",
       "on_deal": true,
       "discount_pct": 20,
       "source": "synthetic_fallback"
@@ -119,7 +119,7 @@
       "article_type": "sneakers",
       "price": 64.95,
       "original_price": 64.95,
-      "currency": "EUR",
+      "currency": "USD",
       "on_deal": false,
       "discount_pct": 0,
       "source": "synthetic_fallback"
@@ -135,7 +135,7 @@
       "article_type": "jeans",
       "price": 89.95,
       "original_price": 89.95,
-      "currency": "EUR",
+      "currency": "USD",
       "on_deal": false,
       "discount_pct": 0,
       "source": "synthetic_fallback"
@@ -151,7 +151,7 @@
       "article_type": "track pants",
       "price": 41.99,
       "original_price": 59.99,
-      "currency": "EUR",
+      "currency": "USD",
       "on_deal": true,
       "discount_pct": 30,
       "source": "synthetic_fallback"
@@ -167,7 +167,7 @@
       "article_type": "trousers",
       "price": 74.5,
       "original_price": 74.5,
-      "currency": "EUR",
+      "currency": "USD",
       "on_deal": false,
       "discount_pct": 0,
       "source": "synthetic_fallback"
@@ -183,7 +183,7 @@
       "article_type": "shorts",
       "price": 32.95,
       "original_price": 32.95,
-      "currency": "EUR",
+      "currency": "USD",
       "on_deal": false,
       "discount_pct": 0,
       "source": "synthetic_fallback"
@@ -199,7 +199,7 @@
       "article_type": "leggings",
       "price": 39.2,
       "original_price": 49.0,
-      "currency": "EUR",
+      "currency": "USD",
       "on_deal": true,
       "discount_pct": 20,
       "source": "synthetic_fallback"
@@ -215,7 +215,7 @@
       "article_type": "trousers",
       "price": 69.95,
       "original_price": 69.95,
-      "currency": "EUR",
+      "currency": "USD",
       "on_deal": false,
       "discount_pct": 0,
       "source": "synthetic_fallback"
@@ -231,7 +231,7 @@
       "article_type": "tshirts",
       "price": 24.95,
       "original_price": 24.95,
-      "currency": "EUR",
+      "currency": "USD",
       "on_deal": false,
       "discount_pct": 0,
       "source": "synthetic_fallback"
@@ -247,7 +247,7 @@
       "article_type": "tshirts",
       "price": 20.99,
       "original_price": 29.99,
-      "currency": "EUR",
+      "currency": "USD",
       "on_deal": true,
       "discount_pct": 30,
       "source": "synthetic_fallback"
@@ -263,7 +263,7 @@
       "article_type": "shirts",
       "price": 54.95,
       "original_price": 54.95,
-      "currency": "EUR",
+      "currency": "USD",
       "on_deal": false,
       "discount_pct": 0,
       "source": "synthetic_fallback"
@@ -279,7 +279,7 @@
       "article_type": "tops",
       "price": 31.5,
       "original_price": 31.5,
-      "currency": "EUR",
+      "currency": "USD",
       "on_deal": false,
       "discount_pct": 0,
       "source": "synthetic_fallback"
@@ -295,7 +295,7 @@
       "article_type": "tshirts",
       "price": 17.47,
       "original_price": 24.95,
-      "currency": "EUR",
+      "currency": "USD",
       "on_deal": true,
       "discount_pct": 30,
       "source": "synthetic_fallback"
@@ -311,7 +311,7 @@
       "article_type": "shirts",
       "price": 49.0,
       "original_price": 49.0,
-      "currency": "EUR",
+      "currency": "USD",
       "on_deal": false,
       "discount_pct": 0,
       "source": "synthetic_fallback"
@@ -327,7 +327,7 @@
       "article_type": "sweaters",
       "price": 99.95,
       "original_price": 99.95,
-      "currency": "EUR",
+      "currency": "USD",
       "on_deal": false,
       "discount_pct": 0,
       "source": "synthetic_fallback"
@@ -343,7 +343,7 @@
       "article_type": "hoodies",
       "price": 55.96,
       "original_price": 69.95,
-      "currency": "EUR",
+      "currency": "USD",
       "on_deal": true,
       "discount_pct": 20,
       "source": "synthetic_fallback"
@@ -359,7 +359,7 @@
       "article_type": "sweaters",
       "price": 119.0,
       "original_price": 119.0,
-      "currency": "EUR",
+      "currency": "USD",
       "on_deal": false,
       "discount_pct": 0,
       "source": "synthetic_fallback"
@@ -375,7 +375,7 @@
       "article_type": "sweatshirts",
       "price": 44.85,
       "original_price": 59.8,
-      "currency": "EUR",
+      "currency": "USD",
       "on_deal": true,
       "discount_pct": 25,
       "source": "synthetic_fallback"
@@ -391,7 +391,7 @@
       "article_type": "cardigan",
       "price": 89.5,
       "original_price": 89.5,
-      "currency": "EUR",
+      "currency": "USD",
       "on_deal": false,
       "discount_pct": 0,
       "source": "synthetic_fallback"
@@ -407,7 +407,7 @@
       "article_type": "pullover",
       "price": 64.95,
       "original_price": 64.95,
-      "currency": "EUR",
+      "currency": "USD",
       "on_deal": false,
       "discount_pct": 0,
       "source": "synthetic_fallback"
@@ -423,7 +423,7 @@
       "article_type": "rain jacket",
       "price": 199.0,
       "original_price": 199.0,
-      "currency": "EUR",
+      "currency": "USD",
       "on_deal": false,
       "discount_pct": 0,
       "source": "synthetic_fallback"
@@ -439,7 +439,7 @@
       "article_type": "coats",
       "price": 179.4,
       "original_price": 249.0,
-      "currency": "EUR",
+      "currency": "USD",
       "on_deal": true,
       "discount_pct": 28,
       "source": "synthetic_fallback"
@@ -455,7 +455,7 @@
       "article_type": "jackets",
       "price": 149.95,
       "original_price": 149.95,
-      "currency": "EUR",
+      "currency": "USD",
       "on_deal": false,
       "discount_pct": 0,
       "source": "synthetic_fallback"
@@ -471,7 +471,7 @@
       "article_type": "jackets",
       "price": 76.0,
       "original_price": 95.0,
-      "currency": "EUR",
+      "currency": "USD",
       "on_deal": true,
       "discount_pct": 20,
       "source": "synthetic_fallback"
@@ -487,7 +487,7 @@
       "article_type": "blazers",
       "price": 229.0,
       "original_price": 229.0,
-      "currency": "EUR",
+      "currency": "USD",
       "on_deal": false,
       "discount_pct": 0,
       "source": "synthetic_fallback"
@@ -503,7 +503,7 @@
       "article_type": "waistcoat",
       "price": 89.95,
       "original_price": 89.95,
-      "currency": "EUR",
+      "currency": "USD",
       "on_deal": false,
       "discount_pct": 0,
       "source": "synthetic_fallback"
@@ -519,7 +519,7 @@
       "article_type": "watches",
       "price": 79.95,
       "original_price": 79.95,
-      "currency": "EUR",
+      "currency": "USD",
       "on_deal": false,
       "discount_pct": 0,
       "source": "synthetic_fallback"
@@ -535,7 +535,7 @@
       "article_type": "backpacks",
       "price": 47.6,
       "original_price": 68.0,
-      "currency": "EUR",
+      "currency": "USD",
       "on_deal": true,
       "discount_pct": 30,
       "source": "synthetic_fallback"
@@ -551,7 +551,7 @@
       "article_type": "sunglasses",
       "price": 34.95,
       "original_price": 34.95,
-      "currency": "EUR",
+      "currency": "USD",
       "on_deal": false,
       "discount_pct": 0,
       "source": "synthetic_fallback"
@@ -567,7 +567,7 @@
       "article_type": "belts",
       "price": 29.95,
       "original_price": 29.95,
-      "currency": "EUR",
+      "currency": "USD",
       "on_deal": false,
       "discount_pct": 0,
       "source": "synthetic_fallback"
@@ -583,7 +583,7 @@
       "article_type": "caps",
       "price": 15.99,
       "original_price": 19.99,
-      "currency": "EUR",
+      "currency": "USD",
       "on_deal": true,
       "discount_pct": 20,
       "source": "synthetic_fallback"
@@ -599,7 +599,7 @@
       "article_type": "scarves",
       "price": 24.95,
       "original_price": 24.95,
-      "currency": "EUR",
+      "currency": "USD",
       "on_deal": false,
       "discount_pct": 0,
       "source": "synthetic_fallback"
@@ -615,7 +615,7 @@
       "article_type": "socks",
       "price": 12.5,
       "original_price": 12.5,
-      "currency": "EUR",
+      "currency": "USD",
       "on_deal": false,
       "discount_pct": 0,
       "source": "synthetic_fallback"
@@ -631,7 +631,7 @@
       "article_type": "handbags",
       "price": 38.4,
       "original_price": 48.0,
-      "currency": "EUR",
+      "currency": "USD",
       "on_deal": true,
       "discount_pct": 20,
       "source": "synthetic_fallback"
@@ -647,7 +647,7 @@
       "article_type": "wallets",
       "price": 27.95,
       "original_price": 27.95,
-      "currency": "EUR",
+      "currency": "USD",
       "on_deal": false,
       "discount_pct": 0,
       "source": "synthetic_fallback"
