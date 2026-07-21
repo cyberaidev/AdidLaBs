@@ -144,10 +144,29 @@ deploy_cfn() {
     log "Using parameter file $PARAMS_FILE"
   fi
 
+  # Templates over 51,200 bytes must be uploaded to S3. Keep a small,
+  # account/region-scoped deploy bucket for that (cleaned up by teardown.sh).
+  local account_id cfn_bucket
+  account_id="$(aws sts get-caller-identity --query Account --output text)"
+  cfn_bucket="${CFN_BUCKET:-adidlabs-cfn-${account_id}-${REGION}}"
+  if ! aws s3api head-bucket --bucket "$cfn_bucket" 2>/dev/null; then
+    log "Creating CFN deploy bucket s3://$cfn_bucket"
+    aws s3api create-bucket \
+      --bucket "$cfn_bucket" \
+      --region "$REGION" \
+      --create-bucket-configuration "LocationConstraint=$REGION" >/dev/null
+    aws s3api put-public-access-block \
+      --bucket "$cfn_bucket" \
+      --public-access-block-configuration \
+      "BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true"
+  fi
+
   aws cloudformation deploy \
     --region "$REGION" \
     --stack-name "$STACK_NAME" \
     --template-file "$TEMPLATE" \
+    --s3-bucket "$cfn_bucket" \
+    --s3-prefix cfn-templates \
     --capabilities CAPABILITY_NAMED_IAM \
     --no-fail-on-empty-changeset \
     --parameter-overrides "${param_overrides[@]}"

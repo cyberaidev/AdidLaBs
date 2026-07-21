@@ -156,6 +156,24 @@ delete_stack() {
 }
 
 # ---------------------------------------------------------------------------
+# 4. Delete the CFN template deploy bucket (created by deploy.sh for
+#    templates over the 51,200-byte inline limit)
+# ---------------------------------------------------------------------------
+delete_cfn_bucket() {
+  step "4. Delete CFN template deploy bucket"
+  local account_id cfn_bucket
+  account_id="$(aws sts get-caller-identity --query Account --output text)"
+  cfn_bucket="${CFN_BUCKET:-adidlabs-cfn-${account_id}-${REGION}}"
+  if aws s3api head-bucket --bucket "$cfn_bucket" 2>/dev/null; then
+    empty_bucket "$cfn_bucket"
+    aws s3api delete-bucket --bucket "$cfn_bucket" --region "$REGION"
+    ok "Deploy bucket s3://$cfn_bucket deleted."
+  else
+    log "Deploy bucket s3://$cfn_bucket not found. Skipping."
+  fi
+}
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 main() {
@@ -166,6 +184,7 @@ main() {
   teardown_kb
   empty_buckets
   delete_stack
+  delete_cfn_bucket
   guard_verify
   printf '\n  AdidLaBs torn down. Idle cost driven to zero.\n'
   printf '  Concept demo — no affiliation with adidas AG. All products fictional.\n\n'
