@@ -2,7 +2,7 @@ import { COPY } from "../copy.js";
 import { HeartIcon } from "./icons.jsx";
 
 function usd(n) {
-  return `$${Number(n).toFixed(2)}`;
+  return `$${Number(n || 0).toFixed(2)}`;
 }
 
 // Single catalog tile (§5.8): image, category tag, heart wishlist toggle, title,

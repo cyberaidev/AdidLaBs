@@ -170,15 +170,25 @@ export default function App() {
       const activeCatalog =
         Array.isArray(railItems) && railItems.length ? railItems : catalog;
       if (Array.isArray(railItems) && railItems.length) setCatalog(railItems);
-      if (Array.isArray(bagItems) && bagItems.length) {
+      // Self-heal: purge legacy AI rows persisted without a real price (from
+      // pre-fix sessions), so the auto-kit can rebuild them correctly.
+      let goodRows = Array.isArray(bagItems) ? bagItems : [];
+      const staleRows = goodRows.filter(
+        (r) => r.ai_pick && !(Number(r.price) > 0)
+      );
+      if (staleRows.length) {
+        staleRows.forEach((r) => removeFromBag(tok, r.item_id));
+        goodRows = goodRows.filter((r) => !staleRows.includes(r));
+      }
+      if (goodRows.length) {
         // Hydrate bag rows against the catalog for titles/prices/images.
-        setBag(hydrate(bagItems, activeCatalog));
+        setBag(hydrate(goodRows, activeCatalog));
       }
       startAgentFlip(roster && roster.length ? roster : STANDBY_ROSTER);
 
       // First visit only: let the mesh pre-fill the bag with an AI-matched
       // kit for this forecast (each row tagged AI CHOICE, fully removable).
-      maybeAutoKit(tok, sess, wx, bagItems);
+      maybeAutoKit(tok, sess, wx, goodRows);
     },
     [catalog, startAgentFlip]
   );
@@ -222,14 +232,20 @@ export default function App() {
       .slice(0, 6)
       .map((p, i) => pickToRow(p, i, label));
     if (!rows.length) return 0;
-    rows.forEach((row) => tok && addToBag(tok, row));
-    let addedCount = 0;
     setBag((prev) => {
       const have = new Set(prev.map((r) => r.item_id));
-      const fresh = rows.filter((r) => !have.has(r.item_id));
-      addedCount = fresh.length;
-      return [...prev, ...fresh];
+      return [...prev, ...rows.filter((r) => !have.has(r.item_id))];
     });
+    if (tok) {
+      // Persist, then converge on the server's authoritative bag (canonical
+      // prices, qty accumulation, ai notes) enriched with local images.
+      Promise.all(rows.map((row) => addToBag(tok, row))).then((resps) => {
+        const last = resps.filter(Boolean).pop();
+        if (last?.items?.length) {
+          setBag((prev) => hydrate(last.items, [...prev, ...catalog]));
+        }
+      });
+    }
     return rows.length;
   }
 
@@ -237,10 +253,14 @@ export default function App() {
     return rows.map((row) => {
       const match = cat.find((c) => c.item_id === (row.item_id || row.id));
       if (!match) return row;
-      // Server rows may carry empty strings for fields the client never sent —
-      // don't let them clobber the catalog's title/category/image.
+      // Server rows may carry empty strings (or legacy zero prices) for fields
+      // the client never sent — don't let them clobber known-good values.
       const filled = Object.fromEntries(
-        Object.entries(row).filter(([, v]) => v !== "" && v != null)
+        Object.entries(row).filter(([k, v]) => {
+          if (v === "" || v == null) return false;
+          if ((k === "price" || k === "deal_price") && !(Number(v) > 0)) return false;
+          return true;
+        })
       );
       return { ...match, ...filled };
     });
@@ -255,12 +275,19 @@ export default function App() {
     );
   }
 
-  // Add to bag — optimistic local update + POST /api/bag when authed.
+  // Add to bag — optimistic local update, then converge on the server's
+  // authoritative bag from the POST response.
   function handleAddToBag(item) {
     setBag((prev) =>
       prev.some((i) => i.item_id === item.item_id) ? prev : [...prev, item]
     );
-    if (token) addToBag(token, item);
+    if (token) {
+      addToBag(token, item).then((resp) => {
+        if (resp?.items?.length) {
+          setBag((prev) => hydrate(resp.items, [...prev, ...catalog]));
+        }
+      });
+    }
     setDrawer("bag");
   }
 

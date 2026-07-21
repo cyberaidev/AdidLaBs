@@ -4,7 +4,7 @@ import { getCatalog } from "../api.js";
 import { productTile } from "../data/fallbackCatalog.js";
 
 function usd(n) {
-  return `$${Number(n).toFixed(2)}`;
+  return `$${Number(n || 0).toFixed(2)}`;
 }
 
 // Full-category browse drawer: every catalog item for one category (from

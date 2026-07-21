@@ -2,7 +2,7 @@ import { COPY } from "../copy.js";
 import { Drawer } from "./Drawer.jsx";
 
 function usd(n) {
-  return `$${Number(n).toFixed(2)}`;
+  return `$${Number(n || 0).toFixed(2)}`;
 }
 
 // Wishlist drawer (§5.15). Hearted items; move-to-bag posts POST /api/bag (App handler).
