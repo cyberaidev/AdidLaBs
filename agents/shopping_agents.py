@@ -22,10 +22,19 @@ from __future__ import annotations
 
 from typing import Any
 
-from .common.a2a import TaskEnvelope, TaskResult, ok_result, skipped_result, error_result
-from .common.llm import LLMClient
-from .common.roster import AgentIdentity, category_identities, get_category_identity
-from .common.tools import ToolClient, kb_is_useful
+# Dual-mode imports: package-relative for tests/tooling (agents.entrypoint), and
+# top-level for the AgentCore runtime, which runs this file as /var/task/<name>.py
+# with no parent package (direct code deploy zips the agents/ dir contents at root).
+try:
+    from .common.a2a import TaskEnvelope, TaskResult, ok_result, skipped_result, error_result
+    from .common.llm import LLMClient
+    from .common.roster import AgentIdentity, category_identities, get_category_identity
+    from .common.tools import ToolClient, kb_is_useful
+except ImportError:  # pragma: no cover - runtime layout
+    from common.a2a import TaskEnvelope, TaskResult, ok_result, skipped_result, error_result
+    from common.llm import LLMClient
+    from common.roster import AgentIdentity, category_identities, get_category_identity
+    from common.tools import ToolClient, kb_is_useful
 
 # Short persona prompt per category (system prompt seed for the rationale LLM).
 PERSONAS: dict[str, str] = {

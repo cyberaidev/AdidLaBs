@@ -36,9 +36,17 @@ from __future__ import annotations
 
 from typing import Any, Callable
 
-from .common.llm import LLMClient
-from .common.tools import default_tool_client
-from .orchestrator import Orchestrator, build_orchestrator
+# Dual-mode imports: package-relative for tests/tooling (agents.entrypoint), and
+# top-level for the AgentCore runtime, which runs this file as /var/task/<name>.py
+# with no parent package (direct code deploy zips the agents/ dir contents at root).
+try:
+    from .common.llm import LLMClient
+    from .common.tools import default_tool_client
+    from .orchestrator import Orchestrator, build_orchestrator
+except ImportError:  # pragma: no cover - runtime layout
+    from common.llm import LLMClient
+    from common.tools import default_tool_client
+    from orchestrator import Orchestrator, build_orchestrator
 
 
 def _make_orchestrator() -> Orchestrator:

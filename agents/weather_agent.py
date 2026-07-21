@@ -24,8 +24,15 @@ import urllib.request
 from dataclasses import dataclass, field
 from typing import Any
 
-from .common.llm import LLMClient
-from .common.roster import get_identity
+# Dual-mode imports: package-relative for tests/tooling (agents.entrypoint), and
+# top-level for the AgentCore runtime, which runs this file as /var/task/<name>.py
+# with no parent package (direct code deploy zips the agents/ dir contents at root).
+try:
+    from .common.llm import LLMClient
+    from .common.roster import get_identity
+except ImportError:  # pragma: no cover - runtime layout
+    from common.llm import LLMClient
+    from common.roster import get_identity
 
 _OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
 

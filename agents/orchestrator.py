@@ -30,12 +30,23 @@ from __future__ import annotations
 
 from typing import Any, TypedDict
 
-from .common.a2a import STATUS_OK, make_task
-from .common.llm import LLMClient
-from .common.roster import get_identity
-from .common.tools import ToolClient, default_tool_client
-from .shopping_agents import ShoppingAgent, build_shopping_agents
-from .weather_agent import WeatherAgent
+# Dual-mode imports: package-relative for tests/tooling (agents.entrypoint), and
+# top-level for the AgentCore runtime, which runs this file as /var/task/<name>.py
+# with no parent package (direct code deploy zips the agents/ dir contents at root).
+try:
+    from .common.a2a import STATUS_OK, make_task
+    from .common.llm import LLMClient
+    from .common.roster import get_identity
+    from .common.tools import ToolClient, default_tool_client
+    from .shopping_agents import ShoppingAgent, build_shopping_agents
+    from .weather_agent import WeatherAgent
+except ImportError:  # pragma: no cover - runtime layout
+    from common.a2a import STATUS_OK, make_task
+    from common.llm import LLMClient
+    from common.roster import get_identity
+    from common.tools import ToolClient, default_tool_client
+    from shopping_agents import ShoppingAgent, build_shopping_agents
+    from weather_agent import WeatherAgent
 
 # --- Routing contract ------------------------------------------------------
 # Weather condition -> ordered list of category specialists the orchestrator
