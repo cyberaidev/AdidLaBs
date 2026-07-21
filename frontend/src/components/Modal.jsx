@@ -6,14 +6,11 @@ export function Modal({ titleId, dismissible, onClose, children }) {
   const ref = useRef(null);
 
   useEffect(() => {
-    // Focus the first focusable control on mount.
+    // Move focus into the dialog itself (not its first input): keyboard and
+    // screen-reader users land inside the modal, but no text caret blinks in
+    // the middle of the page until a field is actually chosen.
     const node = ref.current;
-    if (node) {
-      const focusable = node.querySelector(
-        'input, button, [href], select, textarea, [tabindex]:not([tabindex="-1"])'
-      );
-      if (focusable) focusable.focus();
-    }
+    if (node) node.focus();
 
     function onKeyDown(e) {
       if (e.key === "Escape" && dismissible && onClose) {
@@ -52,6 +49,8 @@ export function Modal({ titleId, dismissible, onClose, children }) {
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
+        tabIndex={-1}
+        style={{ outline: "none" }}
         ref={ref}
       >
         {children}
