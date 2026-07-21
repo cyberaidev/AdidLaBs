@@ -19,6 +19,7 @@ Concept demo - no affiliation with adidas AG. All products fictional.
 from __future__ import annotations
 
 import json
+import re
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass, field
@@ -62,6 +63,34 @@ _WMO: dict[int, tuple[str, str, str]] = {
     99: ("Thunderstorm + hail", "⛈️", "rain"),
 }
 _DEFAULT_CODE = ("Unknown", "\U0001f321️", "mild")
+
+
+# Explicit weather intents a shopper can name ("any snow options?"). Maps
+# message keywords -> (condition bucket, human label). Checked in order;
+# first hit wins. Deliberately simple and deterministic.
+_MESSAGE_INTENTS: list[tuple[frozenset, str, str]] = [
+    (frozenset({"snow", "snowy", "ski", "skiing", "blizzard", "sleet", "slopes"}), "cold", "snow"),
+    (frozenset({"freezing", "winter", "frost", "icy", "ice"}), "cold", "winter cold"),
+    (frozenset({"cold", "chilly", "cool"}), "cold", "cold weather"),
+    (frozenset({"rain", "rainy", "wet", "storm", "stormy", "shower", "showers",
+                "drizzle", "downpour", "monsoon"}), "rain", "rain"),
+    (frozenset({"hot", "heat", "heatwave", "sunny", "sun", "summer", "beach", "uv"}), "sun", "heat and sun"),
+    (frozenset({"wind", "windy", "breezy", "gale"}), "rain", "wind"),
+]
+
+
+def intent_override(message: str) -> tuple[str, str] | None:
+    """Detect an explicit weather ask in a shopper message.
+
+    Returns ``(bucket, label)`` for the first matching intent (e.g. "snow
+    options?" -> ``("cold", "snow")``) or ``None`` when the shopper named no
+    condition, in which case the live forecast rules the routing.
+    """
+    tokens = set(re.findall(r"[a-z]+", (message or "").lower()))
+    for keywords, bucket, label in _MESSAGE_INTENTS:
+        if tokens & keywords:
+            return bucket, label
+    return None
 
 # Temperature thresholds (deg C) used to override the code bucket toward warmth.
 _COLD_MAX_C = 12.0

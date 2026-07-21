@@ -43,14 +43,14 @@ def _get(query=None):
 
 def test_route_mapping():
     assert telemetry._route_for("apac.amazon.nova-pro-v1:0") == "nova-pro"
-    assert telemetry._route_for("apac.anthropic.claude-haiku-4-5-20251001-v1:0") == "haiku-4.5"
+    assert telemetry._route_for("au.anthropic.claude-haiku-4-5-20251001-v1:0") == "haiku-4.5"
     assert telemetry._route_for("amazon.titan-embed-text-v2:0") == "titan-embed (KB)"
     assert telemetry._route_for("something-else") == "other"
 
 
 def test_handler_aggregates_totals(monkeypatch):
     fake = FakeCloudWatch(
-        model_ids=["apac.amazon.nova-pro-v1:0", "apac.anthropic.claude-haiku-4-5-20251001-v1:0"],
+        model_ids=["apac.amazon.nova-pro-v1:0", "au.anthropic.claude-haiku-4-5-20251001-v1:0"],
         sums={"Invocations": 4, "InputTokenCount": 1000, "OutputTokenCount": 250},
     )
     monkeypatch.setattr(telemetry, "_cloudwatch", lambda: fake)

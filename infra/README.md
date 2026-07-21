@@ -269,7 +269,7 @@ or model actions:
   [FAISS-in-Lambda fallback](#faiss-in-lambda-fallback)).
 - **LiteLLM role** (`litellm`): `bedrock:InvokeModel` /
   `InvokeModelWithResponseStream` on **exactly the two APAC inference profiles**
-  (`apac.anthropic.claude-haiku-4-5-20251001-v1:0`, `apac.amazon.nova-pro-v1:0`)
+  (`au.anthropic.claude-haiku-4-5-20251001-v1:0`, `apac.amazon.nova-pro-v1:0`)
   plus the foundation-model ARNs those cross-region profiles fan out to. Nothing
   else.
 - **KB service role** (`kb`, assumed by **Bedrock**, not a Lambda): trusts

@@ -234,7 +234,7 @@ Because S3 Vectors is preview, the design carries a documented fallback that req
 | Route | Target (APAC cross-region inference profile) | Used by |
 |---|---|---|
 | `nova-pro` | `bedrock/apac.amazon.nova-pro-v1:0` | orchestrator |
-| `haiku-4.5` | `bedrock/apac.anthropic.claude-haiku-4-5-20251001-v1:0` | all other agents |
+| `haiku-4.5` | `bedrock/au.anthropic.claude-haiku-4-5-20251001-v1:0` | all other agents |
 
 Centralizing model access means a model swap is a one-line route change, and no agent ever hardcodes a region-specific model ID.
 

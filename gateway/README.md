@@ -13,7 +13,7 @@ and only by **route name** — never a raw model id. There are **exactly two rou
 | Route name | Target (APAC cross-region inference profile) | Used by |
 |---|---|---|
 | `nova-pro`  | `bedrock/apac.amazon.nova-pro-v1:0`                          | Orchestrator only |
-| `haiku-4.5` | `bedrock/apac.anthropic.claude-haiku-4-5-20251001-v1:0`     | Weather + all 6 category agents |
+| `haiku-4.5` | `bedrock/au.anthropic.claude-haiku-4-5-20251001-v1:0`     | Weather + all 6 category agents |
 
 Region is pinned to **`ap-southeast-2` (Sydney)** in `config.yaml`
 (`aws_region_name: ap-southeast-2`), and `drop_params: true` is set so OpenAI-only

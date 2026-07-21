@@ -36,7 +36,7 @@ ALLOWED_ROUTES = frozenset({ROUTE_NOVA_PRO, ROUTE_HAIKU})
 # so tooling / docs / tests can assert the contract without a live gateway.
 ROUTE_TARGETS = {
     ROUTE_NOVA_PRO: "bedrock/apac.amazon.nova-pro-v1:0",
-    ROUTE_HAIKU: "bedrock/apac.anthropic.claude-haiku-4-5-20251001-v1:0",
+    ROUTE_HAIKU: "bedrock/au.anthropic.claude-haiku-4-5-20251001-v1:0",
 }
 
 _DEFAULT_TIMEOUT_S = 60.0

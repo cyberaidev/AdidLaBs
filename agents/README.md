@@ -109,7 +109,7 @@ signature, so agents are unaffected by the swap.
 
 ```
 nova-pro   →  bedrock/apac.amazon.nova-pro-v1:0                    (orchestrator)
-haiku-4.5  →  bedrock/apac.anthropic.claude-haiku-4-5-20251001-v1:0 (everyone else)
+haiku-4.5  →  bedrock/au.anthropic.claude-haiku-4-5-20251001-v1:0 (everyone else)
 ```
 
 All calls go through the OpenAI‑compatible **LiteLLM** gateway at `LITELLM_URL`

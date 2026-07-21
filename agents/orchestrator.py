@@ -39,14 +39,14 @@ try:
     from .common.roster import get_identity
     from .common.tools import ToolClient, default_tool_client
     from .shopping_agents import ShoppingAgent, build_shopping_agents
-    from .weather_agent import WeatherAgent
+    from .weather_agent import WeatherAgent, intent_override
 except ImportError:  # pragma: no cover - runtime layout
     from common.a2a import STATUS_OK, make_task
     from common.llm import LLMClient
     from common.roster import get_identity
     from common.tools import ToolClient, default_tool_client
     from shopping_agents import ShoppingAgent, build_shopping_agents
-    from weather_agent import WeatherAgent
+    from weather_agent import WeatherAgent, intent_override
 
 # --- Routing contract ------------------------------------------------------
 # Weather condition -> ordered list of category specialists the orchestrator
@@ -56,6 +56,17 @@ ROUTING_RULES: dict[str, list[str]] = {
     "sun": ["tshirt", "shoes"],
     "cold": ["jumper", "jacket"],
     "mild": ["tshirt", "pants"],
+}
+
+
+# Extra categories consulted when the shopper NAMES a condition (on top of
+# the mandated ROUTING_RULES for its bucket): snow asks also want boots and
+# accessories, rain asks want footwear, heat asks want caps/shades.
+REQUEST_WIDEN = {
+    "snow": ["shoes", "accessory"],
+    "winter cold": ["accessory"],
+    "rain": ["shoes"],
+    "heat and sun": ["accessory"],
 }
 
 
@@ -103,19 +114,39 @@ class Orchestrator:
     # -- graph nodes ---------------------------------------------------------
     def _node_weather_read(self, state: OrchestratorState) -> OrchestratorState:
         conditions = self.weather.read(forecast=state.get("forecast"))
+        cond = conditions.to_dict()
+        # A shopper naming a condition ("any snow options?") outranks the live
+        # forecast: override the dominant bucket and record the ask so every
+        # downstream node (routing, candidate scoring, reply) honours it.
+        override = intent_override(state.get("user_message", ""))
+        if override:
+            bucket, label = override
+            cond["dominant"] = bucket
+            cond["requested"] = label
+            cond["summary"] = (
+                f"Planning for {label} (your ask), beyond the live forecast. "
+                f"{cond.get('summary', '')}"
+            ).strip()
         # stdout lands in the runtime's CloudWatch log group and feeds the
         # storefront web terminal — every line is tagged with an agent wid.
         print(f"[session] {self.weather.identity.wid} read forecast -> "
-              f"dominant={conditions.dominant} summary={conditions.summary!r}",
+              f"dominant={cond.get('dominant')} "
+              f"requested={cond.get('requested', '-')} "
+              f"summary={cond.get('summary', '')!r}",
               flush=True)
-        return {"conditions": conditions.to_dict()}
+        return {"conditions": cond}
 
     def _node_route(self, state: OrchestratorState) -> OrchestratorState:
-        dominant = state.get("conditions", {}).get("dominant", "mild")
+        conditions = state.get("conditions", {})
+        dominant = conditions.get("dominant", "mild")
         routed = route_for_conditions(dominant)
+        for extra in REQUEST_WIDEN.get(str(conditions.get("requested", "")), []):
+            if extra not in routed:
+                routed.append(extra)
         routed = self._maybe_widen(state.get("user_message", ""), dominant, routed)
-        print(f"[session] {self.identity.wid} routing dominant={dominant} -> "
-              f"{routed}", flush=True)
+        print(f"[session] {self.identity.wid} routing dominant={dominant} "
+              f"requested={conditions.get('requested', '-')} -> {routed}",
+              flush=True)
         return {"routed": routed}
 
     def _node_fan_out(self, state: OrchestratorState) -> OrchestratorState:
@@ -151,7 +182,9 @@ class Orchestrator:
                 continue
             picks.extend(res.get("picks", []))
             citations.extend(res.get("citations", []))
-        reply = self._compose_reply(conditions, results)
+        reply = self._compose_reply(
+            conditions, results, state.get("user_message", "")
+        )
         return {"picks": picks, "citations": citations, "reply": reply}
 
     # -- composition helpers -------------------------------------------------
@@ -168,8 +201,14 @@ class Orchestrator:
                 widened.append(category)
         return widened
 
-    def _compose_reply(self, conditions: dict[str, Any], results: list[dict[str, Any]]) -> str:
+    def _compose_reply(
+        self,
+        conditions: dict[str, Any],
+        results: list[dict[str, Any]],
+        user_message: str = "",
+    ) -> str:
         summary = conditions.get("summary", "")
+        requested = conditions.get("requested")
         lines = []
         for res in results:
             if res.get("status") != STATUS_OK or not res.get("picks"):
@@ -181,8 +220,9 @@ class Orchestrator:
             lines.append(f"- {wid}: {titles} — {res.get('rationale','')}".rstrip())
         body = "\n".join(lines) if lines else "No picks matched this forecast."
 
+        ask_line = f"For your {requested} ask — " if requested else ""
         if self.llm is None:
-            return f"{summary}\nHere are your weather-matched picks:\n{body}".strip()
+            return f"{ask_line}{summary}\nHere are your matched picks:\n{body}".strip()
         try:
             content = self.llm.chat(
                 self.identity.route,
@@ -190,20 +230,25 @@ class Orchestrator:
                     {
                         "role": "system",
                         "content": "You are the AdidLaBs stylist orchestrator. "
-                        "Weave the specialist picks into one warm, concise reply "
-                        "(<=90 words). Keep the item names. No markdown headers.",
+                        "Answer the shopper's actual question first, weaving the "
+                        "specialist picks into one warm, concise reply (<=90 "
+                        "words). Keep the item names. No markdown headers.",
                     },
                     {
                         "role": "user",
-                        "content": f"Forecast: {summary}\nSpecialist picks:\n{body}",
+                        "content": (
+                            f"Shopper asked: {user_message or 'weather-matched picks'}\n"
+                            f"Conditions: {summary}\nSpecialist picks:\n{body}"
+                        ),
                     },
                 ],
                 temperature=0.4,
                 max_tokens=220,
             ).strip()
             return content or f"{summary}\n{body}".strip()
-        except Exception:  # noqa: BLE001 - deterministic fallback
-            return f"{summary}\nHere are your weather-matched picks:\n{body}".strip()
+        except Exception as exc:  # noqa: BLE001 - deterministic fallback
+            print(f"[llm] {self.identity.wid} compose fallback: {exc}", flush=True)
+            return f"{ask_line}{summary}\nHere are your matched picks:\n{body}".strip()
 
     # -- graph wiring --------------------------------------------------------
     def _build_graph(self) -> Any:

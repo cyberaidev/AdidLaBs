@@ -744,15 +744,16 @@ Resources:
                   - bedrock:InvokeModel
                   - bedrock:InvokeModelWithResponseStream
                 Resource:
-                  # The two APAC cross-region inference profiles.
-                  - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/apac.anthropic.claude-haiku-4-5-20251001-v1:0"
+                  # The two cross-region inference profiles available in Sydney:
+                  # Claude Haiku 4.5 ships in the AU geo profile (there is no
+                  # apac.* haiku-4.5 profile in ap-southeast-2); Nova Pro is APAC.
+                  - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/au.anthropic.claude-haiku-4-5-20251001-v1:0"
                   - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/apac.amazon.nova-pro-v1:0"
-                  # The foundation-model ARNs the profiles fan out to across the
-                  # three APAC regions (a cross-region profile invokes the FM in
-                  # each member region on your behalf).
+                  # The foundation-model ARNs each profile fans out to (a
+                  # cross-region profile invokes the FM in its member regions on
+                  # your behalf). AU geo: Sydney + Melbourne; APAC geo: SYD/SIN/TYO.
                   - !Sub "arn:${AWS::Partition}:bedrock:ap-southeast-2::foundation-model/anthropic.claude-haiku-4-5-20251001-v1:0"
-                  - !Sub "arn:${AWS::Partition}:bedrock:ap-southeast-1::foundation-model/anthropic.claude-haiku-4-5-20251001-v1:0"
-                  - !Sub "arn:${AWS::Partition}:bedrock:ap-northeast-1::foundation-model/anthropic.claude-haiku-4-5-20251001-v1:0"
+                  - !Sub "arn:${AWS::Partition}:bedrock:ap-southeast-4::foundation-model/anthropic.claude-haiku-4-5-20251001-v1:0"
                   - !Sub "arn:${AWS::Partition}:bedrock:ap-southeast-2::foundation-model/amazon.nova-pro-v1:0"
                   - !Sub "arn:${AWS::Partition}:bedrock:ap-southeast-1::foundation-model/amazon.nova-pro-v1:0"
                   - !Sub "arn:${AWS::Partition}:bedrock:ap-northeast-1::foundation-model/amazon.nova-pro-v1:0"
@@ -789,7 +790,7 @@ Resources:
 
             _ROUTES = {
                 "nova-pro": "apac.amazon.nova-pro-v1:0",
-                "haiku-4.5": "apac.anthropic.claude-haiku-4-5-20251001-v1:0",
+                "haiku-4.5": "au.anthropic.claude-haiku-4-5-20251001-v1:0",
             }
             _REGION = os.environ.get("AWS_REGION", "ap-southeast-2")
 

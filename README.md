@@ -136,7 +136,7 @@ renders verbatim. The orchestrator uses the stronger `nova-pro` route; every oth
 | Accessory | `adidlabs/accessory-5c4a` | `haiku-4.5` |
 
 Routes resolve through LiteLLM: `nova-pro → bedrock/apac.amazon.nova-pro-v1:0`,
-`haiku-4.5 → bedrock/apac.anthropic.claude-haiku-4-5-20251001-v1:0` (APAC cross-region inference
+`haiku-4.5 → bedrock/au.anthropic.claude-haiku-4-5-20251001-v1:0` (APAC cross-region inference
 profiles). Application code never names a raw model ID.
 
 ## Cost (near-zero idle)

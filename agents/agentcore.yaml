@@ -38,7 +38,7 @@ workload_identities:
 # LiteLLM maps these route names to APAC cross-region inference profiles.
 model_routes:
   nova-pro: bedrock/apac.amazon.nova-pro-v1:0
-  haiku-4.5: bedrock/apac.anthropic.claude-haiku-4-5-20251001-v1:0
+  haiku-4.5: bedrock/au.anthropic.claude-haiku-4-5-20251001-v1:0
 
 # Environment variables the runtime expects (values injected at deploy time by
 # CloudFormation / the deploy script). Names are the project-wide contract.

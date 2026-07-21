@@ -35,10 +35,10 @@ def test_resolve_route_rejects_raw_model_id():
         resolve_route("apac.amazon.nova-pro-v1:0")
 
 
-def test_route_targets_map_to_apac_profiles():
+def test_route_targets_map_to_geo_profiles():
     assert ROUTE_TARGETS[ROUTE_NOVA_PRO] == "bedrock/apac.amazon.nova-pro-v1:0"
     assert ROUTE_TARGETS[ROUTE_HAIKU] == (
-        "bedrock/apac.anthropic.claude-haiku-4-5-20251001-v1:0"
+        "bedrock/au.anthropic.claude-haiku-4-5-20251001-v1:0"
     )
 
 

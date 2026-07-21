@@ -73,7 +73,7 @@ catalog. Nothing scales with wall-clock time.
   - `haiku-4.5` (all category agents) is the cheap, fast, high-volume path.
   - **Model-cost verification:** do **not** assume per-token prices from memory. Confirm current
     Bedrock APAC inference-profile pricing for `apac.amazon.nova-pro-v1:0` and
-    `apac.anthropic.claude-haiku-4-5-20251001-v1:0` from the official AWS Bedrock pricing page (or
+    `au.anthropic.claude-haiku-4-5-20251001-v1:0` from the official AWS Bedrock pricing page (or
     the `claude-api` reference skill for the Anthropic side) before quoting a per-turn dollar figure
     to stakeholders.
 

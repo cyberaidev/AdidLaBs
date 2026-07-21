@@ -20,6 +20,7 @@ Concept demo - no affiliation with adidas AG. All products fictional.
 
 from __future__ import annotations
 
+import hashlib
 from typing import Any
 
 # Dual-mode imports: package-relative for tests/tooling (agents.entrypoint), and
@@ -85,7 +86,7 @@ class ShoppingAgent:
             conditions = payload.get("conditions", {})
             user_message = str(payload.get("user_message", ""))
 
-            candidates = self._candidates()
+            candidates = self._candidates(user_message, conditions)
             if not candidates:
                 return skipped_result(
                     envelope, agent=self.identity.wid, reason=f"No {self.category} in catalog."
@@ -105,16 +106,71 @@ class ShoppingAgent:
             return error_result(envelope, agent=self.identity.wid, error=str(exc))
 
     # -- internals -----------------------------------------------------------
-    def _candidates(self) -> list[dict[str, Any]]:
-        """Deals first (better demo story), then top catalog items, de-duped."""
-        deals = self.tools.get_deals(category=self.category, limit=_MAX_PICKS)
+    def _candidates(
+        self, user_message: str = "", conditions: dict[str, Any] | None = None
+    ) -> list[dict[str, Any]]:
+        """Rank the category pool against the shopper's ask + the conditions.
+
+        The old behaviour returned the same first-N rows every turn. Each
+        candidate is now scored: direct keyword hits from the message (name,
+        colour, season, usage, article type) weigh most, condition affinity
+        (snow/cold -> winter knits and boots, rain -> shells, sun -> summer)
+        next, and deals get a small nudge. Ties break on a hash of
+        item_id+message so different asks surface different items while the
+        same ask stays deterministic.
+        """
+        deals = self.tools.get_deals(category=self.category, limit=12)
         seen = {d["item_id"] for d in deals if d.get("item_id")}
         catalog = [
             i
-            for i in self.tools.get_catalog(category=self.category, limit=8)
+            for i in self.tools.get_catalog(category=self.category, limit=24)
             if i.get("item_id") and i["item_id"] not in seen
         ]
-        return [*deals, *catalog]
+        pool = [*deals, *catalog]
+
+        cond = conditions or {}
+        dominant = str(cond.get("dominant", "mild"))
+        requested = str(cond.get("requested", "") or "")
+        tokens = {t for t in (user_message or "").lower().split() if len(t) > 2}
+
+        affinity = {
+            "cold": ("winter", "fall", "thermal", "knit", "wool", "fleece",
+                     "boot", "crew", "insul", "puffer", "warm"),
+            "rain": ("rain", "shell", "waterproof", "storm", "wind", "boot", "cap"),
+            "sun": ("summer", "spring", "breath", "mesh", "tee", "light", "cap"),
+        }
+        snow_words = ("winter", "thermal", "boot", "wool", "fleece", "knit", "insul")
+
+        def searchable(item: dict[str, Any]) -> str:
+            return " ".join(
+                str(item.get(k, "")) for k in (
+                    "title", "name", "base_colour", "colour", "season",
+                    "usage", "article_type", "gender",
+                )
+            ).lower()
+
+        def score(item: dict[str, Any]) -> tuple[float, int]:
+            text = searchable(item)
+            points = 0.0
+            for tok in tokens:
+                if tok in text:
+                    points += 3.0
+            for hint in affinity.get(dominant, ()):
+                if hint in text:
+                    points += 1.5
+            if requested == "snow":
+                points += sum(1.0 for w in snow_words if w in text)
+            if int(item.get("deal_pct", item.get("discount_pct", 0)) or 0) > 0:
+                points += 0.5
+            tiebreak = int(
+                hashlib.md5(
+                    f"{item.get('item_id','')}::{user_message}".encode()
+                ).hexdigest()[:8],
+                16,
+            )
+            return (points, tiebreak)
+
+        return sorted(pool, key=score, reverse=True)
 
     def _ground(
         self, conditions: dict[str, Any], user_message: str
@@ -160,9 +216,10 @@ class ShoppingAgent:
                     {
                         "role": "user",
                         "content": (
+                            f"Shopper asked: {conditions.get('requested') or 'weather-matched picks'}. "
                             f"Conditions: {dominant}. Candidate {self.category}: "
                             f"{titles}. Grounding: {grounding}. Write one sentence "
-                            f"(<=25 words) justifying these picks for the weather."
+                            f"(<=25 words) answering the ask with these picks."
                         ),
                     },
                 ],
@@ -170,7 +227,8 @@ class ShoppingAgent:
                 max_tokens=80,
             ).strip()
             return content or f"{self.category}: {titles} for {dominant} weather."
-        except Exception:  # noqa: BLE001 - deterministic fallback
+        except Exception as exc:  # noqa: BLE001 - deterministic fallback
+            print(f"[llm] {self.identity.wid} rationale fallback: {exc}", flush=True)
             return f"{self.category}: {titles} for {dominant} weather."
 
 
