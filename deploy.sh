@@ -121,6 +121,13 @@ cfn_output() {
     --output text 2>/dev/null
 }
 
+# The account/region-scoped bucket used for CFN template uploads + code zips.
+cfn_bucket_name() {
+  local account_id
+  account_id="$(aws sts get-caller-identity --query Account --output text)"
+  echo "${CFN_BUCKET:-adidlabs-cfn-${account_id}-${REGION}}"
+}
+
 # ---------------------------------------------------------------------------
 # 1. Frontend build
 # ---------------------------------------------------------------------------
@@ -156,11 +163,23 @@ deploy_cfn() {
     log "Using parameter file $PARAMS_FILE"
   fi
 
+  # Carry forward previously reconciled KbId / AgentCoreAgentArn so a
+  # re-deploy never drops the conditional InvokeAgentRuntime grant or the
+  # CFN-managed Lambda env (deploy_agents reconciles them after launch).
+  local prev p
+  for p in KbId AgentCoreAgentArn; do
+    prev="$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --region "$REGION" \
+             --query "Stacks[0].Parameters[?ParameterKey=='$p'].ParameterValue" \
+             --output text 2>/dev/null || true)"
+    if [ -n "$prev" ] && [ "$prev" != "None" ]; then
+      param_overrides+=( "$p=$prev" )
+    fi
+  done
+
   # Templates over 51,200 bytes must be uploaded to S3. Keep a small,
   # account/region-scoped deploy bucket for that (cleaned up by teardown.sh).
-  local account_id cfn_bucket
-  account_id="$(aws sts get-caller-identity --query Account --output text)"
-  cfn_bucket="${CFN_BUCKET:-adidlabs-cfn-${account_id}-${REGION}}"
+  local cfn_bucket
+  cfn_bucket="$(cfn_bucket_name)"
   if ! aws s3api head-bucket --bucket "$cfn_bucket" 2>/dev/null; then
     log "Creating CFN deploy bucket s3://$cfn_bucket"
     aws s3api create-bucket \
@@ -318,6 +337,22 @@ deploy_agents() {
       bash agents/deploy_agents.sh | tee /dev/stderr | tail -n 1
   )"
   [ -n "$runtime_arn" ] || die "deploy_agents.sh did not return a runtime ARN."
+
+  # Reconcile the stack with the live runtime ARN + KB id. This flips the
+  # HaveAgentArn condition ON, which is what attaches the chat role's
+  # bedrock-agentcore:InvokeAgentRuntime grant — an env-var push alone cannot
+  # grant IAM, and without it the live chat path fails AccessDenied and falls
+  # back to the canned reply. Unlisted parameters keep their previous values.
+  log "Reconciling stack parameters (AgentCoreAgentArn, KbId)"
+  aws cloudformation deploy \
+    --region "$REGION" \
+    --stack-name "$STACK_NAME" \
+    --template-file "$TEMPLATE" \
+    --s3-bucket "$(cfn_bucket_name)" \
+    --s3-prefix cfn-templates \
+    --capabilities CAPABILITY_NAMED_IAM \
+    --no-fail-on-empty-changeset \
+    --parameter-overrides "AgentCoreAgentArn=$runtime_arn" "KbId=${KB_ID:-}"
 
   # Point /api/chat at the live mesh: AGENTCORE_AGENT_ARN set, DEMO_MODE off.
   local api_fn existing merged
