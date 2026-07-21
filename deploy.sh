@@ -125,13 +125,25 @@ cfn_output() {
 # 1. Frontend build
 # ---------------------------------------------------------------------------
 build_frontend() {
-  step "1. Frontend build (Vite/React)"
+  step "Frontend build (Vite/React)"
+  # Vite BAKES env vars into the bundle at build time, so this must run AFTER
+  # the CloudFormation deploy: on a first-ever deploy the API URL and Cognito
+  # ids do not exist earlier, and the site would ship in demo mode.
+  local api_url pool_id client_id
+  api_url="$(cfn_output ApiUrl)"
+  pool_id="$(cfn_output UserPoolId)"
+  client_id="$(cfn_output UserPoolClientId)"
+  [ -n "$api_url" ] && [ "$api_url" != "None" ] \
+    || die "ApiUrl stack output missing — deploy the stack before building the frontend."
   ( cd frontend
     if [ -f package-lock.json ]; then npm ci; else npm install; fi
-    npm run build
+    VITE_API_URL="$api_url" \
+    VITE_USER_POOL_ID="$pool_id" \
+    VITE_USER_POOL_CLIENT_ID="$client_id" \
+      npm run build
   )
   [ -d frontend/dist ] || die "frontend/dist not produced by the build."
-  ok "Frontend built → frontend/dist"
+  ok "Frontend built → frontend/dist (API $api_url baked in)"
 }
 
 # ---------------------------------------------------------------------------
@@ -381,8 +393,8 @@ main() {
   log "Starting AdidLaBs deploy · region=$REGION"
   guard_snapshot
   prereqs
-  build_frontend
   deploy_cfn
+  build_frontend
   sync_assets
   seed_data
   setup_kb
