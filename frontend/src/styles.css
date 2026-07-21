@@ -1131,17 +1131,7 @@ a {
   color: #9a9992;
 }
 
-/* --- Fallen L/B brand letters (wordmark + hero) ---------------------------- */
-.wm-fallen {
-  /* Fallen BACKWARDS in 3D: the glyph tips away from the viewer around its
-     baseline (rotateX + perspective), foreshortening like it lies on the
-     ground plane. em-based perspective scales from the 20px wordmark up to
-     the giant hero headline. */
-  display: inline-block;
-  transform: perspective(2.6em) rotateX(54deg);
-  transform-origin: 50% 100%;
-  margin: 0 0.08em;
-}
+
 
 /* --- Category browse (rail links + drawer) --------------------------------- */
 .browse-row {
