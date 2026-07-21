@@ -40,20 +40,31 @@ function parseJwt(token) {
   }
 }
 
-// Map an orchestrator pick (a raw catalog row: name/original_price/price/…)
-// to the SPA item shape, tagged with its AI provenance label.
+// Map an orchestrator pick to the SPA item shape, tagged with its AI
+// provenance label. Picks arrive in two dialects: DynamoDB rows
+// (name/original_price/price/discount_pct) or the agents' local seed
+// (title/price/deal_pct) — handle both so AI rows never price at $0.
 function pickToRow(pick, index, label) {
   const category = String(pick.category || "pick").toUpperCase();
   const title = pick.title || pick.name || `Forecast pick ${index + 1}`;
-  const original = Number(pick.original_price ?? pick.price ?? 0);
-  const current = Number(pick.price ?? original) || original;
-  const onDeal = current > 0 && current < original;
+  const base = Number(
+    pick.original_price ?? pick.price ?? pick.price_usd ?? pick.price_eur ?? 0
+  );
+  const pct = Number(pick.discount_pct ?? pick.deal_pct ?? 0);
+  const current = Number(pick.price ?? base) || base;
+  let price = base;
+  let dealPrice = null;
+  if (current > 0 && current < base) {
+    dealPrice = current;
+  } else if (pct > 0 && base > 0) {
+    dealPrice = Math.round(base * (1 - pct / 100) * 100) / 100;
+  }
   return {
     item_id: pick.item_id || `ai-${category.toLowerCase()}-${index + 1}`,
     title,
     category,
-    price: onDeal ? original : current,
-    deal_price: onDeal ? current : null,
+    price,
+    deal_price: dealPrice,
     image: productTile(category, title),
     ai_pick: true,
     ai_note: label,

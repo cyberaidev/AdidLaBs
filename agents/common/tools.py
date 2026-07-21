@@ -55,16 +55,16 @@ class ToolClient(Protocol):
 
 # Minimal built-in seed so the module works even before data/ is generated.
 _BUILTIN_SEED: list[dict[str, Any]] = [
-    {"item_id": "shoes-0001", "category": "shoes", "title": "Trail Runner Low", "price_eur": 89.0, "deal_pct": 0},
-    {"item_id": "shoes-0002", "category": "shoes", "title": "All-Weather Sneaker", "price_eur": 110.0, "deal_pct": 20},
-    {"item_id": "pants-0001", "category": "pants", "title": "Tapered Track Pant", "price_eur": 65.0, "deal_pct": 0},
-    {"item_id": "tshirt-0001", "category": "tshirt", "title": "Breathable Training Tee", "price_eur": 29.0, "deal_pct": 0},
-    {"item_id": "tshirt-0002", "category": "tshirt", "title": "Cotton Everyday Tee", "price_eur": 22.0, "deal_pct": 15},
-    {"item_id": "jumper-0001", "category": "jumper", "title": "Midweight Crew Jumper", "price_eur": 79.0, "deal_pct": 0},
-    {"item_id": "jacket-0001", "category": "jacket", "title": "Packable Rain Jacket", "price_eur": 129.0, "deal_pct": 25},
-    {"item_id": "jacket-0002", "category": "jacket", "title": "Windbreaker Shell", "price_eur": 99.0, "deal_pct": 0},
-    {"item_id": "accessory-0001", "category": "accessory", "title": "Compact Umbrella", "price_eur": 19.0, "deal_pct": 0},
-    {"item_id": "accessory-0002", "category": "accessory", "title": "Water-Repellent Cap", "price_eur": 24.0, "deal_pct": 10},
+    {"item_id": "shoes-0001", "category": "shoes", "title": "Trail Runner Low", "price": 89.0, "deal_pct": 0},
+    {"item_id": "shoes-0002", "category": "shoes", "title": "All-Weather Sneaker", "price": 110.0, "deal_pct": 20},
+    {"item_id": "pants-0001", "category": "pants", "title": "Tapered Track Pant", "price": 65.0, "deal_pct": 0},
+    {"item_id": "tshirt-0001", "category": "tshirt", "title": "Breathable Training Tee", "price": 29.0, "deal_pct": 0},
+    {"item_id": "tshirt-0002", "category": "tshirt", "title": "Cotton Everyday Tee", "price": 22.0, "deal_pct": 15},
+    {"item_id": "jumper-0001", "category": "jumper", "title": "Midweight Crew Jumper", "price": 79.0, "deal_pct": 0},
+    {"item_id": "jacket-0001", "category": "jacket", "title": "Packable Rain Jacket", "price": 129.0, "deal_pct": 25},
+    {"item_id": "jacket-0002", "category": "jacket", "title": "Windbreaker Shell", "price": 99.0, "deal_pct": 0},
+    {"item_id": "accessory-0001", "category": "accessory", "title": "Compact Umbrella", "price": 19.0, "deal_pct": 0},
+    {"item_id": "accessory-0002", "category": "accessory", "title": "Water-Repellent Cap", "price": 24.0, "deal_pct": 10},
 ]
 
 # Tiny KB seed mapping weather intent -> grounded style guidance passages.
@@ -112,7 +112,7 @@ def _load_seed_items() -> list[dict[str, Any]]:
                     "item_id": it.get("item_id") or it.get("id") or "",
                     "category": (it.get("category") or "").lower(),
                     "title": it.get("title") or it.get("name") or "Item",
-                    "price_eur": float(it.get("price_eur", it.get("price", 0)) or 0),
+                    "price": float(it.get("price", it.get("price_usd", it.get("price_eur", 0))) or 0),
                     "deal_pct": int(it.get("deal_pct", it.get("discount_pct", 0)) or 0),
                 }
             )
