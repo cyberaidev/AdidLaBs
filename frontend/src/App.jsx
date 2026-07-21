@@ -119,7 +119,13 @@ export default function App() {
   function hydrate(rows, cat) {
     return rows.map((row) => {
       const match = cat.find((c) => c.item_id === (row.item_id || row.id));
-      return match ? { ...match, ...row } : row;
+      if (!match) return row;
+      // Server rows may carry empty strings for fields the client never sent —
+      // don't let them clobber the catalog's title/category/image.
+      const filled = Object.fromEntries(
+        Object.entries(row).filter(([, v]) => v !== "" && v != null)
+      );
+      return { ...match, ...filled };
     });
   }
 

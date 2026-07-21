@@ -173,6 +173,18 @@ deploy_cfn() {
       "BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true"
   fi
 
+  # Package the REAL backend handlers (session/weather/bag/chat/agents +
+  # common/) and pass them via ArtifactsBucket/ApiCodeS3Key. Without these
+  # parameters the template's UseApiS3Code condition is false and every API
+  # Lambda silently runs its inline bootstrap shim instead of backend/.
+  local api_zip api_key
+  api_zip="$(mktemp -d)/api.zip"
+  ( cd backend && zip -qr "$api_zip" . -i '*.py' -x 'tests/*' -x '*__pycache__*' )
+  api_key="artifacts/api-$(shasum -a 256 "$api_zip" | cut -c1-16).zip"
+  aws s3 cp "$api_zip" "s3://$cfn_bucket/$api_key" --region "$REGION" >/dev/null
+  log "Backend package uploaded → s3://$cfn_bucket/$api_key"
+  param_overrides+=( "ArtifactsBucket=$cfn_bucket" "ApiCodeS3Key=$api_key" )
+
   aws cloudformation deploy \
     --region "$REGION" \
     --stack-name "$STACK_NAME" \

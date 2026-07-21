@@ -105,7 +105,20 @@ export async function getBag(token) {
 }
 
 export function addToBag(token, item) {
-  return request("POST", "/api/bag", { token, body: { item_id: item.item_id } });
+  // Persist the descriptive fields too, so bag rows survive reloads with their
+  // title/category/price instead of empty strings (bag.py preserves supplied
+  // fields and only seeds absent ones).
+  return request("POST", "/api/bag", {
+    token,
+    body: {
+      item_id: item.item_id,
+      title: item.title,
+      category: item.category,
+      price: item.deal_price ?? item.price,
+      image: item.image,
+      qty: 1,
+    },
+  });
 }
 
 // Removes a bag item via DELETE /api/bag. The item_id travels as a query param

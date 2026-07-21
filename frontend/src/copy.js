@@ -95,10 +95,18 @@ export const COPY = {
       HELP: ["Shipping", "Returns", "Sizing"],
       ABOUT: ["Concept", "Tech", "GitHub"],
     },
+    // Real destinations for footer entries; anything not listed here renders
+    // as a decorative dead link (the demo has no such pages).
+    columnLinks: {
+      GitHub: "https://github.com/cyberaidev/AdidLaBs",
+      Tech: "https://github.com/cyberaidev/AdidLaBs/blob/main/docs/architecture.md",
+    },
+    repoUrl: "https://github.com/cyberaidev/AdidLaBs",
+    repoLabel: "github.com/cyberaidev/AdidLaBs",
     buildLine: "Built on AWS Bedrock AgentCore · ap-southeast-2 (Sydney)",
     disclaimer:
       "Concept demo — no affiliation with adidas AG. All products fictional.",
-    license: "MIT © cyberaidev · github.com/cyberaidev/AdidLaBs",
+    license: "MIT © cyberaidev ·",
     dataAttribution:
       "Mock data: HuggingFace ashraq/fashion-product-images-small (metadata only), synthetic prices.",
   },
