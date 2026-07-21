@@ -113,10 +113,23 @@ Shipped after the initial release (see `git log` for the full trail):
   inventory; BROWSE THE FULL CATALOG links open a searchable drawer per category.
 - **Account panel.** User details, session claims, sign-out, and OpenClaw / Hermes
   agent-connection stubs (simulated A2A handshake — browser-local state only).
-- **Brand device.** The amber serif **L** and **B** lie fallen flat on the baseline
-  in the wordmark and the hero headline; persistent chat history per session;
-  registration auto-confirm (demo-only Cognito pre-sign-up trigger); no-cache
-  `index.html` + immutable hashed assets.
+- **Enquiry-aware stylist.** Asking for a condition ("any snow options?",
+  "rainy weekend look") overrides the live forecast: routing widens to the
+  matching categories, candidates are scored against the message (name,
+  colour, season, usage) with per-ask deterministic variety, and the
+  Nova Pro-composed reply answers the actual question. LLM fallbacks log
+  `[llm]` lines to the web terminal instead of failing silently.
+- **LiteLLM gateway path.** In Sydney, Claude Haiku 4.5 resolves through the
+  `au.` geo inference profile (no `apac.` haiku profile exists there), and the
+  agents reach the gateway via `POST /api/llm/{proxy+}` on the HTTP API with a
+  master key in `x-adidlabs-gateway-key` — AgentCore workload sessions cannot
+  SigV4 an AWS_IAM function URL, public URLs are commonly guardrail-blocked,
+  and Lambda URLs reserve the `Authorization` header. The key is generated
+  once by `deploy.sh` and kept in an SSM SecureString.
+- **Polish.** The amber serif **L** and **B** brand device in the wordmark and
+  hero headline; persistent chat history per session; registration
+  auto-confirm (demo-only Cognito pre-sign-up trigger); no-cache `index.html`
+  + immutable hashed assets.
 
 ## Agent roster
 
@@ -135,9 +148,9 @@ renders verbatim. The orchestrator uses the stronger `nova-pro` route; every oth
 | Jacket | `adidlabs/jacket-1e8b` | `haiku-4.5` |
 | Accessory | `adidlabs/accessory-5c4a` | `haiku-4.5` |
 
-Routes resolve through LiteLLM: `nova-pro → bedrock/apac.amazon.nova-pro-v1:0`,
-`haiku-4.5 → bedrock/au.anthropic.claude-haiku-4-5-20251001-v1:0` (APAC cross-region inference
-profiles). Application code never names a raw model ID.
+Routes resolve through LiteLLM: `nova-pro → bedrock/apac.amazon.nova-pro-v1:0` (APAC geo
+profile), `haiku-4.5 → bedrock/au.anthropic.claude-haiku-4-5-20251001-v1:0` (AU geo profile —
+Sydney has no `apac.` haiku profile). Application code never names a raw model ID.
 
 ## Cost (near-zero idle)
 
