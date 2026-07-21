@@ -82,7 +82,7 @@ finishes. The demo stays on the **raw CloudFront domain** (no custom domain by d
 |---|---|
 | `frontend/` | Vite + React SPA (storefront, stylist chat, agent roster, drawers) |
 | `infra/` | CloudFormation template + params for the durable serverless stack |
-| `backend/` | Python 3.12 API Lambda handlers (`/api/session`, `/api/weather`, `/api/bag`, `/api/chat`, `/api/agents`) |
+| `backend/` | Python 3.12 API Lambda handlers (`/api/session`, `/api/weather`, `/api/bag`, `/api/chat`, `/api/agents`, `/api/catalog`, `/api/terminal`, `/api/telemetry`) |
 | `gateway/` | LiteLLM model-access tier (aws-lambda-web-adapter) + route config, IAM function URL |
 | `agents/` | AgentCore LangGraph orchestrator + weather agent + 6 category agents |
 | `mcp-tools/` | MCP tool implementations for the AgentCore Gateway |
@@ -92,6 +92,31 @@ finishes. The demo stays on the **raw CloudFront domain** (no custom domain by d
 
 > Module directories other than `docs/` are populated by their respective creators; this README,
 > the license, ignore rules, and the deploy/teardown scripts are the docsroot module.
+
+## Post-release enhancements
+
+Shipped after the initial release (see `git log` for the full trail):
+
+- **AI-choice shopping.** On first login the orchestrator pre-fills the bag with a
+  forecast-matched starter kit; rows are tagged **AI CHOICE**. Chat turns with add
+  intent ("add a rain jacket to my bag") drop that turn's picks into the bag tagged
+  **AI ADVICE**. Manual picks stay untagged so shoppers can curate. Prices in **USD**.
+- **Per-agent web terminal.** Every agent card opens a read-only terminal drawer that
+  tails the AgentCore runtime's CloudWatch log group live (`GET /api/terminal`,
+  JWT-protected), filtered by that agent's workload identity; the orchestrator emits
+  wid-tagged `[session]` / `[a2a]` lines per turn.
+- **LiteLLM telemetry panel.** `GET /api/telemetry` aggregates CloudWatch
+  `AWS/Bedrock` metrics (tokens in/out, invocations, latency) per model route;
+  the storefront panel refreshes every 60 s with an incremental this-visit delta.
+  Agent LLM calls are SigV4-signed against the IAM-auth LiteLLM function URL.
+- **Catalog browsing.** `GET /api/catalog` (public) lists the full category
+  inventory; BROWSE THE FULL CATALOG links open a searchable drawer per category.
+- **Account panel.** User details, session claims, sign-out, and OpenClaw / Hermes
+  agent-connection stubs (simulated A2A handshake — browser-local state only).
+- **Brand device.** The amber serif **L** and **B** lie fallen flat on the baseline
+  in the wordmark and the hero headline; persistent chat history per session;
+  registration auto-confirm (demo-only Cognito pre-sign-up trigger); no-cache
+  `index.html` + immutable hashed assets.
 
 ## Agent roster
 
