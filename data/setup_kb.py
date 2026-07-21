@@ -79,10 +79,19 @@ def _clients(region: str) -> Dict[str, Any]:
     }
 
 
-def _names(account: str) -> Dict[str, str]:
-    """Account-suffixed globally-unique bucket names."""
+def _names(account: str, region: str, corpus_override: Optional[str] = None) -> Dict[str, str]:
+    """Globally-unique bucket names.
+
+    The corpus bucket is owned by CloudFormation (KbCorpusBucket in
+    infra/template.yaml, named adidlabs-kb-corpus-<account>-<region>) and the
+    KB service role's S3 grants are scoped to that exact name — so the default
+    here MUST match the template. deploy.sh passes the stack output explicitly
+    via --corpus-bucket; the default only covers direct invocations. The
+    vector bucket has NO region suffix: the template's s3vectors grants are
+    scoped to adidlabs-kb-vectors-<account>.
+    """
     return {
-        "corpus_bucket": f"{CORPUS_BUCKET}-{account}",
+        "corpus_bucket": corpus_override or f"{CORPUS_BUCKET}-{account}-{region}",
         "vector_bucket": f"{VECTOR_BUCKET}-{account}",
     }
 
@@ -337,11 +346,12 @@ def start_ingestion(bedrock_agent, kb_id: str, ds_id: str, wait: bool = True) ->
 # --------------------------------------------------------------------------- #
 # Teardown (reverse order)
 # --------------------------------------------------------------------------- #
-def teardown(clients: Dict[str, Any], region: str, docs_dir: str) -> None:
+def teardown(clients: Dict[str, Any], region: str, docs_dir: str,
+             corpus_bucket: Optional[str] = None) -> None:
     from botocore.exceptions import ClientError  # type: ignore
 
     account = clients["account"]
-    names = _names(account)
+    names = _names(account, region, corpus_bucket)
     s3 = clients["s3"]
     s3vectors = clients["s3vectors"]
     bedrock_agent = clients["bedrock_agent"]
@@ -397,9 +407,10 @@ def teardown(clients: Dict[str, Any], region: str, docs_dir: str) -> None:
 # Orchestration
 # --------------------------------------------------------------------------- #
 def setup(clients: Dict[str, Any], region: str, kb_role_arn: str,
-          docs_dir: str, skip_ingest: bool) -> str:
+          docs_dir: str, skip_ingest: bool,
+          corpus_bucket: Optional[str] = None) -> str:
     account = clients["account"]
-    names = _names(account)
+    names = _names(account, region, corpus_bucket)
     s3 = clients["s3"]
     s3vectors = clients["s3vectors"]
     bedrock_agent = clients["bedrock_agent"]
@@ -427,6 +438,9 @@ def main(argv: Optional[List[str]] = None) -> int:
                         help="IAM role ARN the KB assumes (or set KB_ROLE_ARN).")
     parser.add_argument("--region", default=REGION, help="AWS region (default ap-southeast-2).")
     parser.add_argument("--docs-dir", default=DEFAULT_DOCS_DIR, help="KB markdown docs dir.")
+    parser.add_argument("--corpus-bucket", default=os.environ.get("CORPUS_BUCKET_NAME"),
+                        help="Corpus S3 bucket name (pass the KbCorpusBucketName stack "
+                             "output). Defaults to adidlabs-kb-corpus-<account>-<region>.")
     parser.add_argument("--skip-ingest", action="store_true",
                         help="Create resources but do not run the ingestion job.")
     parser.add_argument("--teardown", action="store_true",
@@ -443,7 +457,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     clients = _clients(args.region)
 
     if args.teardown:
-        teardown(clients, args.region, args.docs_dir)
+        teardown(clients, args.region, args.docs_dir, args.corpus_bucket)
         return 0
 
     if not args.kb_role_arn:
@@ -451,7 +465,8 @@ def main(argv: Optional[List[str]] = None) -> int:
               file=sys.stderr)
         return 2
 
-    kb_id = setup(clients, args.region, args.kb_role_arn, args.docs_dir, args.skip_ingest)
+    kb_id = setup(clients, args.region, args.kb_role_arn, args.docs_dir, args.skip_ingest,
+                  args.corpus_bucket)
     print(f"[kb] KB_ID={kb_id}")
     # Final stdout line is the bare id so callers can `| tail -n1`.
     print(kb_id)

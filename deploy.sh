@@ -226,19 +226,22 @@ seed_data() {
 # ---------------------------------------------------------------------------
 setup_kb() {
   step "5. Setup Bedrock Knowledge Base over S3 Vectors"
-  local kb_id kb_role_arn
-  # setup_kb.py derives its own corpus/vector bucket names (adidlabs-kb-corpus-
-  # <account>) and uploads data/kb_docs/ (generated in step 4). It requires the
-  # KB service role ARN the Knowledge Base assumes: prefer an explicit
-  # KB_ROLE_ARN, else a KbRoleArn stack output if the infra module exposes one.
+  local kb_id kb_role_arn corpus_bucket
+  # The corpus bucket is created by CloudFormation (KbCorpusBucket) and the KB
+  # service role's S3 grants are scoped to that exact bucket — pass the stack
+  # output through so setup_kb.py can never derive a divergent name. The KB
+  # role ARN: prefer an explicit KB_ROLE_ARN, else the KbRoleArn stack output.
   kb_role_arn="${KB_ROLE_ARN:-$(cfn_output KbRoleArn)}"
+  corpus_bucket="$(cfn_output KbCorpusBucketName)"
+  [ -n "$corpus_bucket" ] || die "KbCorpusBucketName stack output missing."
 
   # setup_kb.py provisions the vector index + KB, ingests data/kb_docs/, and
   # prints the KB id as the last line of stdout.
   kb_id="$(
     KB_ROLE_ARN="${kb_role_arn:-}" \
     AWS_REGION="$REGION" \
-      python3 data/setup_kb.py --region "$REGION" --docs-dir data/kb_docs | tee /dev/stderr | tail -n 1
+      python3 data/setup_kb.py --region "$REGION" --docs-dir data/kb_docs \
+        --corpus-bucket "$corpus_bucket" | tee /dev/stderr | tail -n 1
   )"
   [ -n "$kb_id" ] || die "setup_kb.py did not return a KB_ID."
   export KB_ID="$kb_id"
