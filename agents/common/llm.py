@@ -80,12 +80,12 @@ class LLMClient:
 
     def __post_init__(self) -> None:
         self.base_url = (self.base_url or "").rstrip("/")
-        # LiteLLM master-key auth: when LITELLM_API_KEY is set, send it as the
-        # bearer token (also disables SigV4 signing below — the gateway URL is
-        # AuthType NONE with key enforcement in the handler).
+        # LiteLLM master-key auth: when LITELLM_API_KEY is set, send it in a
+        # CUSTOM header. Lambda function URLs reserve Authorization for SigV4 —
+        # a bearer token there is rejected with 403 before the handler runs.
         key = os.environ.get("LITELLM_API_KEY", "")
-        if key and "Authorization" not in self.extra_headers:
-            self.extra_headers["Authorization"] = f"Bearer {key}"
+        if key and "x-adidlabs-gateway-key" not in self.extra_headers:
+            self.extra_headers["x-adidlabs-gateway-key"] = key
 
     def _endpoint(self) -> str:
         if not self.base_url:
@@ -175,7 +175,7 @@ class LLMClient:
         headers = {"Content-Type": "application/json", **self.extra_headers}
         # The LiteLLM function URL uses AWS_IAM auth: sign the request with
         # SigV4 unless the caller supplied its own Authorization header.
-        if "Authorization" not in headers:
+        if "Authorization" not in headers and "x-adidlabs-gateway-key" not in headers:
             headers = {**self._sigv4_headers(endpoint, data), **headers}
         request = urllib.request.Request(
             endpoint, data=data, headers=headers, method="POST"

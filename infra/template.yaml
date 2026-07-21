@@ -830,8 +830,9 @@ Resources:
                 master = os.environ.get("MASTER_KEY", "")
                 if master:
                     headers = {k.lower(): v for k, v in (event.get("headers") or {}).items()}
-                    supplied = headers.get("authorization", "")
-                    if supplied != f"Bearer {master}":
+                    supplied = headers.get("x-adidlabs-gateway-key", "")
+                    bearer = headers.get("authorization", "")
+                    if supplied != master and bearer != f"Bearer {master}":
                         return _resp(401, {"error": "invalid or missing gateway key"})
 
                 raw = event.get("body") or "{}"
