@@ -236,12 +236,49 @@ def find_kb_by_name(bedrock_agent, name: str) -> Optional[str]:
     return None
 
 
+def _kb_status(bedrock_agent, kb_id: str) -> Optional[str]:
+    from botocore.exceptions import ClientError  # type: ignore
+    try:
+        return bedrock_agent.get_knowledge_base(
+            knowledgeBaseId=kb_id
+        )["knowledgeBase"]["status"]
+    except ClientError as exc:
+        if exc.response.get("Error", {}).get("Code") == "ResourceNotFoundException":
+            return None
+        raise
+
+
+def _wait_kb_gone(bedrock_agent, kb_id: str, timeout: int = 300) -> None:
+    """KB deletion is asynchronous: a deleted KB stays listed in DELETING for a
+    while. Reusing it races create_data_source into a ConflictException, so
+    wait until it disappears before creating a replacement."""
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if _kb_status(bedrock_agent, kb_id) is None:
+            return
+        time.sleep(5)
+    raise TimeoutError(f"KB {kb_id} still deleting after {timeout}s")
+
+
 def ensure_knowledge_base(bedrock_agent, region: str, account: str,
                           kb_role_arn: str, vector_bucket: str) -> str:
     existing = find_kb_by_name(bedrock_agent, KB_NAME)
     if existing:
-        print(f"[kb] knowledge base exists: {existing}")
-        return existing
+        status = _kb_status(bedrock_agent, existing)
+        if status == "ACTIVE":
+            print(f"[kb] knowledge base exists: {existing}")
+            return existing
+        if status == "CREATING":
+            print(f"[kb] knowledge base {existing} is CREATING; waiting…")
+            _wait_kb_active(bedrock_agent, existing)
+            return existing
+        if status in ("DELETING", None):
+            print(f"[kb] knowledge base {existing} is deleting; waiting for it to go…")
+            _wait_kb_gone(bedrock_agent, existing)
+        else:  # FAILED / DELETE_UNSUCCESSFUL — remove and recreate
+            print(f"[kb] knowledge base {existing} is {status}; deleting and recreating…")
+            bedrock_agent.delete_knowledge_base(knowledgeBaseId=existing)
+            _wait_kb_gone(bedrock_agent, existing)
 
     print(f"[kb] creating knowledge base: {KB_NAME}")
     resp = bedrock_agent.create_knowledge_base(
