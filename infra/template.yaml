@@ -883,27 +883,19 @@ Resources:
       Tags:
         - { Key: app, Value: adidlabs }
 
-  # AuthType NONE + LiteLLM master-key (bearer) auth in the handler. AWS_IAM
-  # was the first choice, but AgentCore runtime workload sessions are
-  # scope-restricted: their SigV4 requests are rejected at the URL even when
-  # the execution role holds lambda:InvokeFunctionUrl. A gateway key is the
-  # standard LiteLLM posture and works from any caller that holds the key.
+  # The function URL stays AWS_IAM (defense in depth) but is NOT how the
+  # agents reach the gateway: AgentCore workload sessions are scope-restricted
+  # (SigV4 to the URL is rejected regardless of role policy), and this
+  # account's guardrails also block public (AuthType NONE) URLs. Agents call
+  # the gateway through the HTTP API instead (POST /api/llm/{proxy+}, below),
+  # authenticated by the LiteLLM master key in the x-adidlabs-gateway-key
+  # header, which the handler enforces.
   LiteLlmUrl:
     Type: AWS::Lambda::Url
     Properties:
       TargetFunctionArn: !GetAtt LiteLlmFunction.Arn
-      AuthType: NONE
+      AuthType: AWS_IAM
       InvokeMode: BUFFERED
-
-  # AuthType NONE still requires a public-invoke resource policy; the handler
-  # enforces the master key.
-  LiteLlmPublicInvokePermission:
-    Type: AWS::Lambda::Permission
-    Properties:
-      FunctionName: !Ref LiteLlmFunction
-      Action: lambda:InvokeFunctionUrl
-      Principal: "*"
-      FunctionUrlAuthType: NONE
 
   # Resource-policy half of the LiteLLM function-URL grant. AWS_IAM function URLs
   # require BOTH the caller's identity policy (lambda:InvokeFunctionUrl — see
@@ -1434,6 +1426,14 @@ Resources:
       IntegrationUri: !GetAtt CatalogFunction.Arn
       PayloadFormatVersion: "2.0"
 
+  LiteLlmApiIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref HttpApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !GetAtt LiteLlmFunction.Arn
+      PayloadFormatVersion: "2.0"
+
   # --- Routes ----------------------------------------------------------------
   # session, weather, agents are pre-auth (session/weather/agents are fetched
   # right after login but the JWT authorizer is applied to bag + chat where
@@ -1475,6 +1475,15 @@ Resources:
       ApiId: !Ref HttpApi
       RouteKey: "GET /api/catalog"
       Target: !Sub "integrations/${CatalogIntegration}"
+
+  # llm — the agents' path to the LiteLLM gateway. No JWT authorizer (agents
+  # hold no user token); the handler enforces the master key header.
+  LiteLlmApiRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: "POST /api/llm/{proxy+}"
+      Target: !Sub "integrations/${LiteLlmApiIntegration}"
 
   # bag (all verbs) — JWT-protected; user_id is derived from the token sub.
   BagGetRoute:
@@ -1595,6 +1604,14 @@ Resources:
       Action: lambda:InvokeFunction
       Principal: apigateway.amazonaws.com
       SourceArn: !Sub "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*/*/api/catalog"
+
+  LiteLlmApiInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref LiteLlmFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*/*/api/llm/*"
 
 # -----------------------------------------------------------------------------
 # Outputs — the five contractual outputs PLUS the ids deploy.sh / teardown.sh

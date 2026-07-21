@@ -353,7 +353,7 @@ deploy_agents() {
 
   local runtime_arn
   runtime_arn="$(
-    LITELLM_URL="$(cfn_output LiteLLMUrl)" \
+    LITELLM_URL="$(cfn_output ApiUrl)/api/llm" \
     LITELLM_API_KEY="${LITELLM_MASTER_KEY:-}" \
     KB_ID="${KB_ID:-}" \
     CATALOG_TABLE="$CATALOG_TABLE" BAG_TABLE="$BAG_TABLE" \
