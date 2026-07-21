@@ -329,12 +329,21 @@ deploy_gateway() {
   # targets is what makes the tools discoverable to the mesh.
   [ -f mcp-tools/register_gateway.py ] || die "mcp-tools/register_gateway.py not found (mcp-tools module) — cannot register gateway targets."
 
-  # register_gateway.py imports server.py by module name, so run it from inside
-  # mcp-tools/. Gateway id resolves from AGENTCORE_GATEWAY_ID (CFN output if
-  # present) → GATEWAY_ID → the stable demo default.
+  # register_gateway.py imports server.py (FastMCP), so its deps must be on
+  # the active python3 — install them quietly and idempotently.
+  python3 -m pip install -q -r mcp-tools/requirements.txt
+
+  # register_gateway.py ensures the gateway (Cognito CUSTOM_JWT authorizer +
+  # service role) and one Lambda target carrying all six tools. It needs the
+  # tools Lambda name and the Cognito issuer/client from the stack outputs.
+  # Gateway id resolves from AGENTCORE_GATEWAY_ID (CFN output if present) →
+  # GATEWAY_ID → ensure-and-use the demo gateway.
   local gateway_id
   gateway_id="$(cfn_output AgentGatewayId)"
   ( cd mcp-tools
+    TOOLS_FUNCTION_NAME="$(cfn_output ToolsFunctionName)" \
+    USER_POOL_PROVIDER_URL="$(cfn_output UserPoolProviderUrl)" \
+    USER_POOL_CLIENT_ID="$(cfn_output UserPoolClientId)" \
     LITELLM_URL="$(cfn_output LiteLLMUrl)" \
     KB_ID="${KB_ID:-}" \
     CATALOG_TABLE="$CATALOG_TABLE" BAG_TABLE="$BAG_TABLE" \
