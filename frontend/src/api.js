@@ -129,6 +129,15 @@ export function removeFromBag(token, itemId) {
   return request("DELETE", "/api/bag", { token, query: { item_id: itemId } });
 }
 
+// Web-terminal feed: recent AgentCore runtime session lines, optionally
+// filtered to one agent's wid. Returns { log_group, events } or null.
+export function getTerminal(token, wid) {
+  return request("GET", "/api/terminal", {
+    token,
+    query: wid ? { wid, limit: 150 } : { limit: 150 },
+  });
+}
+
 // Posts a chat turn; returns { reply, agent, wid } shape or a deterministic demo
 // reply when the backend is unreachable so the drawer always responds.
 export async function postChat(token, message, context) {

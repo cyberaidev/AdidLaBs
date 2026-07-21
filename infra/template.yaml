@@ -438,6 +438,37 @@ Resources:
       ManagedPolicyArns:
         - !Sub "arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 
+  # terminal: read-only access to the AgentCore runtime log groups so the
+  # storefront's web terminal can show each agent's session lines.
+  TerminalLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "adidlabs-terminal-role-${AWS::StackName}-${AWS::Region}"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: lambda.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+      Policies:
+        - PolicyName: read-agentcore-runtime-logs
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:DescribeLogGroups
+                Resource: !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:*"
+              - Effect: Allow
+                Action:
+                  - logs:FilterLogEvents
+                  - logs:GetLogEvents
+                Resource:
+                  - !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/bedrock-agentcore/runtimes/*"
+                  - !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/bedrock-agentcore/runtimes/*:*"
+
   # bag: DynamoDB item ops on the bag table ONLY.
   BagLambdaRole:
     Type: AWS::IAM::Role
@@ -1152,6 +1183,35 @@ Resources:
         Audience: [!Ref UserPoolClient]
         Issuer: !Sub "https://cognito-idp.${AWS::Region}.amazonaws.com/${UserPool}"
 
+  TerminalFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "adidlabs-api-terminal-${AWS::StackName}"
+      Description: GET /api/terminal — AgentCore runtime session lines for the web terminal.
+      Role: !GetAtt TerminalLambdaRole.Arn
+      Runtime: python3.12
+      Timeout: 15
+      MemorySize: !Ref LambdaMemoryMb
+      Handler: !If [UseApiS3Code, terminal.handler, index.handler]
+      Code: !If
+        - UseApiS3Code
+        - { S3Bucket: !Ref ArtifactsBucket, S3Key: !Ref ApiCodeS3Key }
+        - ZipFile: |
+            import json
+
+            def handler(event, context):
+                return {
+                    "statusCode": 200,
+                    "headers": {"Content-Type": "application/json",
+                                "Access-Control-Allow-Origin": "*"},
+                    "body": json.dumps({
+                        "log_group": None, "events": [],
+                        "note": "Inline bootstrap — deploy the backend package "
+                                "(ArtifactsBucket/ApiCodeS3Key) for live logs."}),
+                }
+      Tags:
+        - { Key: app, Value: adidlabs }
+
   # --- Integrations (one per function) --------------------------------------
   SessionIntegration:
     Type: AWS::ApiGatewayV2::Integration
@@ -1191,6 +1251,14 @@ Resources:
       ApiId: !Ref HttpApi
       IntegrationType: AWS_PROXY
       IntegrationUri: !GetAtt AgentsFunction.Arn
+      PayloadFormatVersion: "2.0"
+
+  TerminalIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref HttpApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !GetAtt TerminalFunction.Arn
       PayloadFormatVersion: "2.0"
 
   # --- Routes ----------------------------------------------------------------
@@ -1256,6 +1324,16 @@ Resources:
       AuthorizationType: JWT
       AuthorizerId: !Ref JwtAuthorizer
 
+  # terminal — JWT-protected; runtime session logs are for signed-in members.
+  TerminalRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: "GET /api/terminal"
+      Target: !Sub "integrations/${TerminalIntegration}"
+      AuthorizationType: JWT
+      AuthorizerId: !Ref JwtAuthorizer
+
   # --- Stage (auto-deploy) ---------------------------------------------------
   DefaultStage:
     Type: AWS::ApiGatewayV2::Stage
@@ -1304,6 +1382,14 @@ Resources:
       Action: lambda:InvokeFunction
       Principal: apigateway.amazonaws.com
       SourceArn: !Sub "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*/*/api/agents"
+
+  TerminalInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref TerminalFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*/*/api/terminal"
 
 # -----------------------------------------------------------------------------
 # Outputs — the five contractual outputs PLUS the ids deploy.sh / teardown.sh

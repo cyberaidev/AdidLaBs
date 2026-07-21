@@ -23,6 +23,7 @@ import { StylistChat } from "./components/StylistChat.jsx";
 import { ArchitectureDrawer } from "./components/ArchitectureDrawer.jsx";
 import { BagDrawer } from "./components/BagDrawer.jsx";
 import { WishlistDrawer } from "./components/WishlistDrawer.jsx";
+import { TerminalDrawer } from "./components/TerminalDrawer.jsx";
 
 // Roster with standby status, used until GET /api/agents responds (or as fallback).
 const STANDBY_ROSTER = COPY.agents.map((a) => ({ ...a, status: "standby" }));
@@ -47,7 +48,8 @@ export default function App() {
   const [wishlist, setWishlist] = useState([]);
 
   // Mutually-exclusive drawers (§7).
-  const [drawer, setDrawer] = useState(null); // 'chat' | 'arch' | 'wishlist' | 'bag' | null
+  const [drawer, setDrawer] = useState(null); // 'chat' | 'arch' | 'wishlist' | 'bag' | 'terminal' | null
+  const [terminalAgent, setTerminalAgent] = useState(null); // roster entry or null (= all sessions)
 
   const railRef = useRef(null);
   const flipTimers = useRef([]);
@@ -167,6 +169,25 @@ export default function App() {
     if (!authed) setShowLogin(true);
   }
 
+  // Chat icon: reopen the stylist drawer (login first when signed out).
+  function openChat() {
+    if (!authed) {
+      if (registered) setShowLogin(true);
+      return;
+    }
+    setDrawer("chat");
+  }
+
+  // Agent-card terminal: read that agent's runtime session lines (login first).
+  function openTerminal(agent) {
+    if (!authed) {
+      if (registered) setShowLogin(true);
+      return;
+    }
+    setTerminalAgent(agent || null);
+    setDrawer("terminal");
+  }
+
   function scrollToRail() {
     railRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
@@ -179,6 +200,7 @@ export default function App() {
         wishlistCount={wishlist.length}
         bagCount={bag.length}
         onArchitecture={() => setDrawer("arch")}
+        onChat={openChat}
         onAccount={openAccount}
         onWishlist={() => setDrawer("wishlist")}
         onBag={() => setDrawer("bag")}
@@ -194,7 +216,7 @@ export default function App() {
           onToggleHeart={toggleHeart}
           onAddToBag={handleAddToBag}
         />
-        <AgentsPanel agents={agents} />
+        <AgentsPanel agents={agents} onTerminal={openTerminal} />
       </main>
 
       <Footer />
@@ -248,6 +270,13 @@ export default function App() {
         <BagDrawer
           items={bag}
           onRemove={handleRemoveFromBag}
+          onClose={() => setDrawer(null)}
+        />
+      )}
+      {drawer === "terminal" && authed && (
+        <TerminalDrawer
+          token={token}
+          agent={terminalAgent}
           onClose={() => setDrawer(null)}
         />
       )}

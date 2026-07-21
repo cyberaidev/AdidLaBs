@@ -52,3 +52,21 @@ export function LockIcon() {
     </svg>
   );
 }
+
+export function ChatIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M4 5h16v11H9l-5 4V5z" />
+      <path d="M8 9h8M8 12h5" />
+    </svg>
+  );
+}
+
+export function TerminalIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="3" y="5" width="18" height="14" />
+      <path d="M7 10l3 2-3 2M12 15h5" />
+    </svg>
+  );
+}

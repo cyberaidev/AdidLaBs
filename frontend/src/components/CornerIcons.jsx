@@ -1,12 +1,21 @@
-import { CloudIcon, UserIcon, HeartIcon, BagIcon, SearchIcon } from "./icons.jsx";
+import {
+  CloudIcon,
+  UserIcon,
+  HeartIcon,
+  BagIcon,
+  SearchIcon,
+  ChatIcon,
+} from "./icons.jsx";
 
 // Top-right icon cluster in exact order (§5.3): search stub, cloud (architecture),
-// user (green dot when authed), heart (wishlist), bag (live count).
+// chat (stylist drawer), user (green dot when authed), heart (wishlist),
+// bag (live count).
 export function CornerIcons({
   authed,
   wishlistCount,
   bagCount,
   onArchitecture,
+  onChat,
   onAccount,
   onWishlist,
   onBag,
@@ -25,6 +34,16 @@ export function CornerIcons({
         onClick={onArchitecture}
       >
         <CloudIcon />
+      </button>
+
+      <button
+        type="button"
+        className="icon-btn"
+        aria-label="Stylist chat"
+        title="Stylist chat"
+        onClick={onChat}
+      >
+        <ChatIcon />
       </button>
 
       <button type="button" className="icon-btn" aria-label="Account" onClick={onAccount}>

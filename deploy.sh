@@ -227,7 +227,15 @@ sync_assets() {
   dist_id="$(cfn_output CloudFrontDistributionId)"
   [ -n "$site_bucket" ] && [ "$site_bucket" != "None" ] || die "SiteBucketName output missing from stack."
 
-  aws s3 sync frontend/dist "s3://$site_bucket/" --region "$REGION" --delete
+  # Hashed assets are immutable — cache them for a year. index.html must NEVER
+  # be cached by the browser, or users keep running stale bundles long after a
+  # deploy (CloudFront invalidation cannot purge a browser's own cache).
+  aws s3 sync frontend/dist "s3://$site_bucket/" --region "$REGION" --delete \
+    --exclude "index.html" \
+    --cache-control "public,max-age=31536000,immutable"
+  aws s3 cp frontend/dist/index.html "s3://$site_bucket/index.html" --region "$REGION" \
+    --cache-control "no-cache,no-store,must-revalidate" \
+    --content-type "text/html"
   if [ -n "$dist_id" ] && [ "$dist_id" != "None" ]; then
     aws cloudfront create-invalidation --distribution-id "$dist_id" --paths '/*' >/dev/null
     ok "Assets synced to s3://$site_bucket and CloudFront invalidated."

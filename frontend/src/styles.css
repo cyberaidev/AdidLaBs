@@ -971,3 +971,78 @@ a {
     transform: none;
   }
 }
+
+/* --- Web terminal drawer (per-agent AgentCore session view) --------------- */
+.drawer.terminal {
+  background: #0c0c0c;
+  color: #d7d7d0;
+}
+.terminal-head {
+  background: #0c0c0c;
+  border-bottom: 1px solid #262626;
+}
+.terminal-head .drawer-title {
+  color: #f4f4ef;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  letter-spacing: 1px;
+}
+.term-live {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #2e7d46;
+  animation: term-pulse 1.6s ease-in-out infinite;
+}
+@keyframes term-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .term-live { animation: none; }
+}
+.terminal-body {
+  font-family: "SF Mono", ui-monospace, Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.7;
+  padding: 14px 16px;
+}
+.term-line {
+  margin: 0 0 2px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: #d7d7d0;
+}
+.term-ts {
+  color: #ba7517;
+}
+.term-dim {
+  color: #77766e;
+}
+.terminal-foot {
+  background: #0c0c0c;
+  border-top: 1px solid #262626;
+  color: #77766e;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+}
+.terminal .drawer-close {
+  color: #f4f4ef;
+}
+
+/* Agent card: name/wid row + terminal affordance */
+.agent-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+.term-btn {
+  flex: 0 0 auto;
+  opacity: 0.55;
+}
+.term-btn:hover {
+  opacity: 1;
+}

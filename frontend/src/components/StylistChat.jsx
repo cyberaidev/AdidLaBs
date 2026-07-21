@@ -4,8 +4,44 @@ import { Drawer } from "./Drawer.jsx";
 import { Wordmark } from "./Wordmark.jsx";
 import { postChat } from "../api.js";
 
+// WMO daily weathercode -> short label (subset; mirrors backend/chat.py).
+const WMO = {
+  0: "clear", 1: "mostly clear", 2: "partly cloudy", 3: "overcast",
+  45: "fog", 48: "fog", 51: "drizzle", 53: "drizzle", 55: "drizzle",
+  61: "light rain", 63: "rain", 65: "heavy rain", 71: "light snow",
+  73: "snow", 75: "heavy snow", 80: "showers", 81: "showers",
+  82: "heavy showers", 95: "thunderstorms", 96: "thunderstorms",
+  99: "thunderstorms",
+};
+
+// "Milan, IT — next 3 days: TUE 31°/23° showers · …" (same shape the backend
+// prefixes onto live replies).
+function contextLine(session, weather) {
+  const days = Array.isArray(weather) ? weather : weather?.days || [];
+  const city = session?.city;
+  const region = session?.region || session?.country;
+  const place = city ? (region ? `${city}, ${region}` : city) : "";
+  const parts = days
+    .slice(0, 3)
+    .map((d) => {
+      let seg = String(d.day || d.date || "").trim();
+      if (d.hi != null && d.lo != null) {
+        seg = `${seg} ${Math.round(d.hi)}°/${Math.round(d.lo)}°`.trim();
+      }
+      const label = WMO[d.weathercode] || d.label || "";
+      if (label) seg = `${seg} ${label}`.trim();
+      return seg;
+    })
+    .filter(Boolean);
+  if (!place && !parts.length) return "";
+  if (!parts.length) return place;
+  const line = parts.join(" · ");
+  return place ? `${place} — next 3 days: ${line}` : `Next 3 days: ${line}`;
+}
+
 // Stylist chat drawer (§5.13). Auto-opens after login. Orchestrator-seeded greeting,
-// user/agent bubbles, composer POSTs /api/chat, and an 8-square "thinking" row.
+// a weather-agent context report as soon as the session loads, user/agent bubbles,
+// composer POSTs /api/chat, and an 8-square "thinking" row.
 export function StylistChat({ token, session, weather, agents, onClose }) {
   const [messages, setMessages] = useState([
     {
@@ -18,6 +54,26 @@ export function StylistChat({ token, session, weather, agents, onClose }) {
   const [input, setInput] = useState("");
   const [thinking, setThinking] = useState(false);
   const bodyRef = useRef(null);
+  const announcedRef = useRef(false);
+
+  // As soon as the IP-derived session + forecast land, the weather agent
+  // reports the city and 3-day outlook right in the chat (§ the chat must
+  // report location + weather, not just the weather bar).
+  useEffect(() => {
+    if (announcedRef.current) return;
+    const line = contextLine(session, weather);
+    if (!line) return;
+    announcedRef.current = true;
+    setMessages((m) => [
+      ...m,
+      {
+        role: "agent",
+        agent: "WEATHER",
+        wid: "adidlabs/weather-3b7c",
+        text: `Here is your local read — ${line}. Ask for a look and I will match it to this window.`,
+      },
+    ]);
+  }, [session, weather]);
 
   useEffect(() => {
     // Keep the message list scrolled to the newest turn.

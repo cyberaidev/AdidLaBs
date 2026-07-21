@@ -103,12 +103,19 @@ class Orchestrator:
     # -- graph nodes ---------------------------------------------------------
     def _node_weather_read(self, state: OrchestratorState) -> OrchestratorState:
         conditions = self.weather.read(forecast=state.get("forecast"))
+        # stdout lands in the runtime's CloudWatch log group and feeds the
+        # storefront web terminal — every line is tagged with an agent wid.
+        print(f"[session] {self.weather.identity.wid} read forecast -> "
+              f"dominant={conditions.dominant} summary={conditions.summary!r}",
+              flush=True)
         return {"conditions": conditions.to_dict()}
 
     def _node_route(self, state: OrchestratorState) -> OrchestratorState:
         dominant = state.get("conditions", {}).get("dominant", "mild")
         routed = route_for_conditions(dominant)
         routed = self._maybe_widen(state.get("user_message", ""), dominant, routed)
+        print(f"[session] {self.identity.wid} routing dominant={dominant} -> "
+              f"{routed}", flush=True)
         return {"routed": routed}
 
     def _node_fan_out(self, state: OrchestratorState) -> OrchestratorState:
@@ -125,7 +132,13 @@ class Orchestrator:
                 recipient=agent.identity.wid,
                 payload={"conditions": conditions, "user_message": user_message},
             )
-            results.append(agent.handle(envelope).to_dict())
+            print(f"[a2a] {self.identity.wid} -> {agent.identity.wid} "
+                  f"task={envelope.task_id} category={category}", flush=True)
+            result = agent.handle(envelope).to_dict()
+            print(f"[a2a] {agent.identity.wid} -> {self.identity.wid} "
+                  f"status={result.get('status')} picks={len(result.get('picks', []))}",
+                  flush=True)
+            results.append(result)
         return {"results": results}
 
     def _node_compose(self, state: OrchestratorState) -> OrchestratorState:
