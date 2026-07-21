@@ -277,23 +277,44 @@ PY
 # ---------------------------------------------------------------------------
 deploy_agents() {
   step "6. Deploy AgentCore agents"
-  local runtime_arn
-  runtime_arn="$(cfn_output AgentRuntimeArn)"
 
-  # The agents module ships a shell deployer (agents/deploy_agents.sh) that runs
-  # the bedrock-agentcore starter toolkit (configure + launch). It hard-requires
-  # LITELLM_URL, KB_ID and AGENTCORE_AGENT_ARN, so this stage MUST run — it is
-  # not an optional no-op.
+  # agents/deploy_agents.sh runs the bedrock-agentcore starter toolkit
+  # (configure + launch), creating or updating the runtime, and prints the
+  # runtime ARN as its LAST stdout line — the ARN does not exist before
+  # launch, so it is an output of this stage, never an input.
   [ -f agents/deploy_agents.sh ] || die "agents/deploy_agents.sh not found (agents module) — cannot deploy the agent mesh."
 
-  AGENTCORE_AGENT_ARN="${runtime_arn:-}" \
-  LITELLM_URL="$(cfn_output LiteLLMUrl)" \
-  KB_ID="${KB_ID:-}" \
-  CATALOG_TABLE="$CATALOG_TABLE" BAG_TABLE="$BAG_TABLE" \
-  DEMO_MODE="$DEMO_MODE" \
-  AWS_REGION="$REGION" \
-    bash agents/deploy_agents.sh
-  ok "Agents registered/updated on AgentCore Runtime."
+  local runtime_arn
+  runtime_arn="$(
+    LITELLM_URL="$(cfn_output LiteLLMUrl)" \
+    KB_ID="${KB_ID:-}" \
+    CATALOG_TABLE="$CATALOG_TABLE" BAG_TABLE="$BAG_TABLE" \
+    DEMO_MODE=0 \
+    AWS_REGION="$REGION" \
+      bash agents/deploy_agents.sh | tee /dev/stderr | tail -n 1
+  )"
+  [ -n "$runtime_arn" ] || die "deploy_agents.sh did not return a runtime ARN."
+
+  # Point /api/chat at the live mesh: AGENTCORE_AGENT_ARN set, DEMO_MODE off.
+  local api_fn existing merged
+  api_fn="$(cfn_output ApiHandlerFunctionName)"
+  if [ -n "$api_fn" ] && [ "$api_fn" != "None" ]; then
+    log "Setting AGENTCORE_AGENT_ARN on Lambda $api_fn"
+    existing="$(aws lambda get-function-configuration --function-name "$api_fn" --region "$REGION" \
+                 --query 'Environment.Variables' --output json 2>/dev/null || echo '{}')"
+    merged="$(AGENTCORE_AGENT_ARN="$runtime_arn" python3 - "$existing" <<'PY'
+import json, os, sys
+env = json.loads(sys.argv[1] or "{}") or {}
+env["AGENTCORE_AGENT_ARN"] = os.environ["AGENTCORE_AGENT_ARN"]
+env["DEMO_MODE"] = "0"
+print(json.dumps({"Variables": env}))
+PY
+)"
+    aws lambda update-function-configuration \
+      --function-name "$api_fn" --region "$REGION" \
+      --environment "$merged" >/dev/null
+  fi
+  ok "Agents registered/updated on AgentCore Runtime · $runtime_arn"
 }
 
 # ---------------------------------------------------------------------------

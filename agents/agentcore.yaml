@@ -6,7 +6,7 @@
 # specialists). The specialists are addressed over A2A in-process for cost; see
 # agents/README.md for the documented tradeoff vs one runtime per agent.
 
-name: adidlabs-agents
+name: adidlabs_agents                 # runtime names allow [a-zA-Z0-9_] only — no dashes
 region: ap-southeast-2                # Sydney. Every resource lives here.
 entrypoint: entrypoint.py             # exposes `app` (BedrockAgentCoreApp)
 runtime: python3.12

@@ -46,30 +46,67 @@ if [[ "${1:-}" == "--check" ]]; then
 fi
 
 # Required env for the runtime. Fail early if unset (except optional ones).
+# NOTE: AGENTCORE_AGENT_ARN is an OUTPUT of `agentcore launch` — the runtime
+# does not exist before launch — so it is never required as an input here.
+# This script prints the resolved ARN as its LAST stdout line; deploy.sh
+# captures it and pushes it onto the chat Lambda.
 : "${LITELLM_URL:?set LITELLM_URL to the LiteLLM gateway function URL}"
 : "${KB_ID:?set KB_ID (from data/setup_kb.py)}"
 : "${CATALOG_TABLE:=adidlabs-catalog}"
 : "${BAG_TABLE:=adidlabs-bag}"
-: "${AGENTCORE_AGENT_ARN:?set AGENTCORE_AGENT_ARN}"
 : "${DEMO_MODE:=0}"
 TAVILY_API_KEY="${TAVILY_API_KEY:-}"
 
+# AgentCore runtime names must match [a-zA-Z][a-zA-Z0-9_]* — no dashes.
+RUNTIME_NAME="adidlabs_agents"
+
+command -v agentcore >/dev/null 2>&1 \
+  || { echo "agentcore CLI not found: pip install bedrock-agentcore-starter-toolkit" >&2; exit 1; }
+
 cd "${SCRIPT_DIR}"
 
-echo "==> agentcore configure"
+export AGENTCORE_SUPPRESS_RECOMMENDATION=1
+
+echo "==> agentcore configure (${RUNTIME_NAME})"
+# direct_code_deploy pushes the Python code straight to the runtime — no
+# CodeBuild, no ECR, fewest IAM requirements. --non-interactive auto-creates
+# the execution role and staging bucket.
 agentcore configure \
-  --config agentcore.yaml \
-  --region "${REGION}"
+  --entrypoint entrypoint.py \
+  --name "${RUNTIME_NAME}" \
+  --requirements-file requirements.txt \
+  --region "${REGION}" \
+  --deployment-type direct_code_deploy \
+  --non-interactive \
+  --disable-otel
 
 echo "==> agentcore launch"
-agentcore launch \
-  --region "${REGION}" \
-  --env "LITELLM_URL=${LITELLM_URL}" \
-  --env "KB_ID=${KB_ID}" \
-  --env "CATALOG_TABLE=${CATALOG_TABLE}" \
-  --env "BAG_TABLE=${BAG_TABLE}" \
-  --env "AGENTCORE_AGENT_ARN=${AGENTCORE_AGENT_ARN}" \
-  --env "DEMO_MODE=${DEMO_MODE}" \
-  --env "TAVILY_API_KEY=${TAVILY_API_KEY}"
+LAUNCH_ENVS=(
+  --env "LITELLM_URL=${LITELLM_URL}"
+  --env "KB_ID=${KB_ID}"
+  --env "CATALOG_TABLE=${CATALOG_TABLE}"
+  --env "BAG_TABLE=${BAG_TABLE}"
+  --env "DEMO_MODE=${DEMO_MODE}"
+)
+[ -n "${TAVILY_API_KEY}" ] && LAUNCH_ENVS+=( --env "TAVILY_API_KEY=${TAVILY_API_KEY}" )
+agentcore launch --auto-update-on-conflict "${LAUNCH_ENVS[@]}"
 
-echo "==> Done. Set the printed runtime ARN as AGENTCORE_AGENT_ARN for api-handler."
+# Resolve the runtime ARN via boto3 (aws-cli builds older than mid-2025 lack
+# the bedrock-agentcore-control commands) and print it as the LAST line.
+RUNTIME_ARN="$(AWS_REGION="${REGION}" RUNTIME_NAME="${RUNTIME_NAME}" python3 - <<'PY'
+import os
+import boto3
+client = boto3.client("bedrock-agentcore-control", region_name=os.environ["AWS_REGION"])
+name = os.environ["RUNTIME_NAME"]
+arn = ""
+paginator = client.get_paginator("list_agent_runtimes")
+for page in paginator.paginate():
+    for runtime in page.get("agentRuntimes", []):
+        if runtime.get("agentRuntimeName") == name:
+            arn = runtime.get("agentRuntimeArn", "")
+print(arn)
+PY
+)"
+[ -n "${RUNTIME_ARN}" ] || { echo "Could not resolve runtime ARN for ${RUNTIME_NAME}" >&2; exit 1; }
+echo "==> Runtime ready: ${RUNTIME_ARN}"
+echo "${RUNTIME_ARN}"
