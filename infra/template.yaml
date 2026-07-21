@@ -469,6 +469,31 @@ Resources:
                   - !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/bedrock-agentcore/runtimes/*"
                   - !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/bedrock-agentcore/runtimes/*:*"
 
+  # telemetry: read-only Bedrock usage metrics (CloudWatch metrics have no
+  # resource-level scoping, so the read actions take *).
+  TelemetryLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "adidlabs-telemetry-role-${AWS::StackName}-${AWS::Region}"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: lambda.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+      Policies:
+        - PolicyName: read-bedrock-metrics
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - cloudwatch:ListMetrics
+                  - cloudwatch:GetMetricStatistics
+                Resource: "*"
+
   # bag: DynamoDB item ops on the bag table ONLY.
   BagLambdaRole:
     Type: AWS::IAM::Role
@@ -1212,6 +1237,36 @@ Resources:
       Tags:
         - { Key: app, Value: adidlabs }
 
+  TelemetryFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "adidlabs-api-telemetry-${AWS::StackName}"
+      Description: GET /api/telemetry — LiteLLM/Bedrock token usage for the storefront panel.
+      Role: !GetAtt TelemetryLambdaRole.Arn
+      Runtime: python3.12
+      Timeout: 15
+      MemorySize: !Ref LambdaMemoryMb
+      Handler: !If [UseApiS3Code, telemetry.handler, index.handler]
+      Code: !If
+        - UseApiS3Code
+        - { S3Bucket: !Ref ArtifactsBucket, S3Key: !Ref ApiCodeS3Key }
+        - ZipFile: |
+            import json
+
+            def handler(event, context):
+                return {
+                    "statusCode": 200,
+                    "headers": {"Content-Type": "application/json",
+                                "Access-Control-Allow-Origin": "*"},
+                    "body": json.dumps({
+                        "models": [], "totals": {"invocations": 0, "tokens_in": 0,
+                                                  "tokens_out": 0, "tokens": 0},
+                        "note": "Inline bootstrap — deploy the backend package "
+                                "(ArtifactsBucket/ApiCodeS3Key) for live telemetry."}),
+                }
+      Tags:
+        - { Key: app, Value: adidlabs }
+
   # --- Integrations (one per function) --------------------------------------
   SessionIntegration:
     Type: AWS::ApiGatewayV2::Integration
@@ -1261,6 +1316,14 @@ Resources:
       IntegrationUri: !GetAtt TerminalFunction.Arn
       PayloadFormatVersion: "2.0"
 
+  TelemetryIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref HttpApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !GetAtt TelemetryFunction.Arn
+      PayloadFormatVersion: "2.0"
+
   # --- Routes ----------------------------------------------------------------
   # session, weather, agents are pre-auth (session/weather/agents are fetched
   # right after login but the JWT authorizer is applied to bag + chat where
@@ -1286,6 +1349,14 @@ Resources:
       ApiId: !Ref HttpApi
       RouteKey: "GET /api/agents"
       Target: !Sub "integrations/${AgentsIntegration}"
+
+  # telemetry — public like agents: aggregate demo usage numbers, no user data.
+  TelemetryRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: "GET /api/telemetry"
+      Target: !Sub "integrations/${TelemetryIntegration}"
 
   # bag (all verbs) — JWT-protected; user_id is derived from the token sub.
   BagGetRoute:
@@ -1390,6 +1461,14 @@ Resources:
       Action: lambda:InvokeFunction
       Principal: apigateway.amazonaws.com
       SourceArn: !Sub "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*/*/api/terminal"
+
+  TelemetryInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref TelemetryFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*/*/api/telemetry"
 
 # -----------------------------------------------------------------------------
 # Outputs — the five contractual outputs PLUS the ids deploy.sh / teardown.sh

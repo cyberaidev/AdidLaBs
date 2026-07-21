@@ -6,12 +6,14 @@ function euro(n) {
 }
 
 // Bag drawer (§5.15). Rows from bag state; remove via DELETE /api/bag (App handler).
-// CHECKOUT is a demo no-op — no payment is ever processed.
+// AI-matched rows carry the AI CHOICE tag so the user can curate them alongside
+// manual picks. CHECKOUT is a demo no-op — no payment is ever processed.
 export function BagDrawer({ items, onRemove, onClose }) {
   const subtotal = items.reduce(
     (sum, i) => sum + Number(i.deal_price ?? i.price ?? 0),
     0
   );
+  const hasAiPicks = items.some((i) => i.ai_pick);
 
   return (
     <Drawer titleId="bag-title" onClose={onClose}>
@@ -30,6 +32,7 @@ export function BagDrawer({ items, onRemove, onClose }) {
       </div>
 
       <div className="drawer-body">
+        {hasAiPicks && <p className="ai-note">{COPY.bag.aiNote}</p>}
         {items.length === 0 ? (
           <p className="drawer-empty">{COPY.bag.empty}</p>
         ) : (
@@ -37,7 +40,10 @@ export function BagDrawer({ items, onRemove, onClose }) {
             <div key={item.item_id} className="line-item">
               {item.image && <img src={item.image} alt="" />}
               <div className="line-item-info">
-                <span className="line-item-title">{item.title}</span>
+                <span className="line-item-title">
+                  {item.title}
+                  {item.ai_pick && <span className="ai-badge">AI CHOICE</span>}
+                </span>
                 <span className="line-item-price">
                   {euro(item.deal_price ?? item.price)}
                 </span>

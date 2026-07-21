@@ -41,39 +41,45 @@ function contextLine(session, weather) {
 
 // Stylist chat drawer (§5.13). Auto-opens after login. Orchestrator-seeded greeting,
 // a weather-agent context report as soon as the session loads, user/agent bubbles,
-// composer POSTs /api/chat, and an 8-square "thinking" row.
-export function StylistChat({ token, session, weather, agents, onClose }) {
-  const [messages, setMessages] = useState([
-    {
-      role: "agent",
-      agent: "ORCHESTRATOR",
-      wid: "adidlabs/orchestrator-9f21",
-      text: COPY.chat.seed,
-    },
-  ]);
+// composer POSTs /api/chat, and an 8-square "thinking" row. History lives in App
+// state (messages/onMessages) so closing the drawer never loses the conversation.
+export function StylistChat({
+  token,
+  session,
+  weather,
+  agents,
+  messages,
+  onMessages,
+  onClose,
+}) {
+  const setMessages = onMessages;
   const [input, setInput] = useState("");
   const [thinking, setThinking] = useState(false);
   const bodyRef = useRef(null);
-  const announcedRef = useRef(false);
 
   // As soon as the IP-derived session + forecast land, the weather agent
   // reports the city and 3-day outlook right in the chat (§ the chat must
-  // report location + weather, not just the weather bar).
+  // report location + weather, not just the weather bar). Announce exactly
+  // once per session — the guard reads the persisted history, so reopening
+  // the drawer never repeats it.
   useEffect(() => {
-    if (announcedRef.current) return;
+    if (messages.some((m) => m.text?.startsWith("Here is your local read"))) return;
     const line = contextLine(session, weather);
     if (!line) return;
-    announcedRef.current = true;
-    setMessages((m) => [
-      ...m,
-      {
-        role: "agent",
-        agent: "WEATHER",
-        wid: "adidlabs/weather-3b7c",
-        text: `Here is your local read — ${line}. Ask for a look and I will match it to this window.`,
-      },
-    ]);
-  }, [session, weather]);
+    setMessages((m) =>
+      m.some((x) => x.text?.startsWith("Here is your local read"))
+        ? m
+        : [
+            ...m,
+            {
+              role: "agent",
+              agent: "WEATHER",
+              wid: "adidlabs/weather-3b7c",
+              text: `Here is your local read — ${line}. Ask for a look and I will match it to this window.`,
+            },
+          ]
+    );
+  }, [session, weather, messages, setMessages]);
 
   useEffect(() => {
     // Keep the message list scrolled to the newest turn.

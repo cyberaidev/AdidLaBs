@@ -57,6 +57,9 @@ export const COPY = {
     seed: "Reading your 3-day forecast…",
     placeholder: "Ask the stylist…",
     send: "SEND",
+    // Sent automatically once per session to pre-fill the bag (AI CHOICE rows).
+    autoKitPrompt:
+      "Build me a weather-matched starter kit for the next 3 days — one pick per relevant category.",
   },
 
   architecture: {
@@ -81,6 +84,15 @@ export const COPY = {
     subtotal: "SUBTOTAL",
     checkout: "CHECKOUT (DEMO)",
     empty: "Your bag is empty.",
+    aiNote:
+      "Items tagged AI CHOICE were matched to your forecast by the stylist mesh — keep them, remove them, or add your own.",
+  },
+
+  litellm: {
+    heading: "LITELLM GATEWAY",
+    sub: "Model telemetry via Bedrock",
+    empty: "No model traffic in this window yet — chat with the stylist to generate some.",
+    foot: "Live CloudWatch AWS/Bedrock metrics · routes nova-pro + haiku-4.5 (APAC inference profiles) + Titan embeddings (KB) · refreshes every 15s.",
   },
   wishlist: {
     title: "WISHLIST",

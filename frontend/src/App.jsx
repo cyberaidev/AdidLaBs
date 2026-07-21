@@ -8,7 +8,9 @@ import {
   getBag,
   addToBag,
   removeFromBag,
+  postChat,
 } from "./api.js";
+import { productTile } from "./data/fallbackCatalog.js";
 
 import { TopUtilityBar } from "./components/TopUtilityBar.jsx";
 import { Header } from "./components/Header.jsx";
@@ -24,6 +26,7 @@ import { ArchitectureDrawer } from "./components/ArchitectureDrawer.jsx";
 import { BagDrawer } from "./components/BagDrawer.jsx";
 import { WishlistDrawer } from "./components/WishlistDrawer.jsx";
 import { TerminalDrawer } from "./components/TerminalDrawer.jsx";
+import { LiteLLMPanel } from "./components/LiteLLMPanel.jsx";
 
 // Roster with standby status, used until GET /api/agents responds (or as fallback).
 const STANDBY_ROSTER = COPY.agents.map((a) => ({ ...a, status: "standby" }));
@@ -50,6 +53,18 @@ export default function App() {
   // Mutually-exclusive drawers (§7).
   const [drawer, setDrawer] = useState(null); // 'chat' | 'arch' | 'wishlist' | 'bag' | 'terminal' | null
   const [terminalAgent, setTerminalAgent] = useState(null); // roster entry or null (= all sessions)
+
+  // Chat history lives here (not in the drawer) so closing and reopening the
+  // stylist keeps the whole conversation for the session.
+  const [chatMessages, setChatMessages] = useState([
+    {
+      role: "agent",
+      agent: "ORCHESTRATOR",
+      wid: "adidlabs/orchestrator-9f21",
+      text: COPY.chat.seed,
+    },
+  ]);
+  const aiKitRef = useRef(false);
 
   const railRef = useRef(null);
   const flipTimers = useRef([]);
@@ -114,9 +129,61 @@ export default function App() {
         setBag(hydrate(bagItems, activeCatalog));
       }
       startAgentFlip(roster && roster.length ? roster : STANDBY_ROSTER);
+
+      // First visit only: let the mesh pre-fill the bag with an AI-matched
+      // kit for this forecast (each row tagged AI CHOICE, fully removable).
+      maybeAutoKit(tok, sess, wx, bagItems);
     },
     [catalog, startAgentFlip]
   );
+
+  // Ask the orchestrator for forecast-matched picks and add them to the bag,
+  // tagged ai_pick so the drawer shows the AI CHOICE note. Skipped when the
+  // user's bag already contains AI picks (returning visitor keeps control).
+  async function maybeAutoKit(tok, sess, wx, bagItems) {
+    if (aiKitRef.current) return;
+    if ((bagItems || []).some((r) => r.ai_pick)) {
+      aiKitRef.current = true;
+      return;
+    }
+    aiKitRef.current = true;
+    const res = await postChat(tok, COPY.chat.autoKitPrompt, {
+      session: sess,
+      weather: wx,
+    });
+    const picks = (res.picks || []).slice(0, 6);
+    if (!picks.length) return;
+    const rows = picks.map((p, i) => {
+      const category = String(p.category || "pick").toUpperCase();
+      const title = p.title || `Forecast pick ${i + 1}`;
+      return {
+        item_id: p.item_id || `ai-${category.toLowerCase()}-${i + 1}`,
+        title,
+        category,
+        price: p.price ?? 0,
+        deal_price: null,
+        image: productTile(category, title),
+        ai_pick: true,
+      };
+    });
+    rows.forEach((row) => addToBag(tok, row));
+    setBag((prev) => {
+      const have = new Set(prev.map((r) => r.item_id));
+      return [...prev, ...rows.filter((r) => !have.has(r.item_id))];
+    });
+    setChatMessages((m) => [
+      ...m,
+      {
+        role: "agent",
+        agent: "ORCHESTRATOR",
+        wid: "adidlabs/orchestrator-9f21",
+        text:
+          `I pre-filled your bag with ${rows.length} AI-matched pieces for this ` +
+          `forecast — each is tagged AI CHOICE in the bag. Remove any, or add ` +
+          `your own picks from the rail.`,
+      },
+    ]);
+  }
 
   function hydrate(rows, cat) {
     return rows.map((row) => {
@@ -217,6 +284,7 @@ export default function App() {
           onAddToBag={handleAddToBag}
         />
         <AgentsPanel agents={agents} onTerminal={openTerminal} />
+        <LiteLLMPanel />
       </main>
 
       <Footer />
@@ -254,6 +322,8 @@ export default function App() {
           session={session}
           weather={weather}
           agents={agents}
+          messages={chatMessages}
+          onMessages={setChatMessages}
           onClose={() => setDrawer(null)}
         />
       )}

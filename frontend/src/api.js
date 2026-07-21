@@ -117,6 +117,7 @@ export function addToBag(token, item) {
       price: item.deal_price ?? item.price,
       image: item.image,
       qty: 1,
+      ...(item.ai_pick ? { ai_pick: true } : {}),
     },
   });
 }
@@ -138,6 +139,12 @@ export function getTerminal(token, wid) {
   });
 }
 
+// LiteLLM gateway telemetry: Bedrock token usage per model route (public).
+// Returns { window_hours, models, totals } or null.
+export function getTelemetry() {
+  return request("GET", "/api/telemetry", {});
+}
+
 // Posts a chat turn; returns { reply, agent, wid } shape or a deterministic demo
 // reply when the backend is unreachable so the drawer always responds.
 export async function postChat(token, message, context) {
@@ -150,6 +157,7 @@ export async function postChat(token, message, context) {
       reply: data.reply || data.message,
       agent: data.agent || "ORCHESTRATOR",
       wid: data.wid || "adidlabs/orchestrator-9f21",
+      picks: Array.isArray(data.picks) ? data.picks : [],
     };
   }
   return {

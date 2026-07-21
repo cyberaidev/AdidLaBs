@@ -33,7 +33,13 @@ const GLYPHS = {
 };
 
 // Product tile: category silhouette + product title, so every item renders a
-// distinct, correct image without any external asset.
+// distinct, correct image without any external asset. Exported so AI-matched
+// picks added to the bag get the same artwork.
+export function productTile(category, title) {
+  const key = String(category || "").toUpperCase();
+  return tile(key in GLYPHS ? key : "ACCESSORY", title || key, "#EDEEF0");
+}
+
 function tile(category, title, hex) {
   const glyph = GLYPHS[category] || GLYPHS.ACCESSORY;
   const svg =

@@ -1046,3 +1046,87 @@ a {
 .term-btn:hover {
   opacity: 1;
 }
+
+/* --- AI CHOICE provenance (bag) ------------------------------------------- */
+.ai-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 6px;
+  background: #ba7517;
+  color: #0a0a0a;
+  font-family: "Oswald", sans-serif;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 1px;
+  vertical-align: 2px;
+}
+.ai-note {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border: 1px solid #e2e1dc;
+  border-left: 3px solid #ba7517;
+  font-size: 12px;
+  line-height: 1.55;
+  color: #55544e;
+}
+
+/* --- LiteLLM gateway telemetry panel --------------------------------------- */
+.tele-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin: 18px 0 14px;
+}
+.tele-stat {
+  border: 1px solid #e2e1dc;
+  padding: 12px 14px;
+  background: #fff;
+}
+.tele-label {
+  display: block;
+  font-family: "Oswald", sans-serif;
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: #77766e;
+}
+.tele-value {
+  display: block;
+  margin-top: 4px;
+  font-family: "SF Mono", ui-monospace, Menlo, monospace;
+  font-size: 22px;
+  color: #0a0a0a;
+}
+.tele-rows {
+  border-top: 1px solid #e2e1dc;
+}
+.tele-row {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 0;
+  border-bottom: 1px solid #eeede9;
+}
+.tele-model {
+  font-family: "SF Mono", ui-monospace, Menlo, monospace;
+  font-size: 11px;
+  color: #55544e;
+  overflow-wrap: anywhere;
+}
+.tele-nums {
+  margin-left: auto;
+  font-family: "SF Mono", ui-monospace, Menlo, monospace;
+  font-size: 12px;
+  color: #0a0a0a;
+  white-space: nowrap;
+}
+.tele-empty {
+  font-size: 13px;
+  color: #77766e;
+}
+.tele-foot {
+  margin-top: 10px;
+  font-size: 11px;
+  letter-spacing: 0.3px;
+  color: #9a9992;
+}
