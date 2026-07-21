@@ -103,19 +103,29 @@ export function StylistChat({
       ...m,
       { role: "agent", agent: res.agent, wid: res.wid, text: res.reply },
     ]);
-    // Chat-driven shopping: when the user asks to add something, the
-    // orchestrator's picks for that turn go straight into the bag, tagged
-    // AI ADVICE so they read differently from the login auto-kit.
-    if (onAiAdd && ADD_INTENT.test(text) && res.picks?.length) {
-      const added = onAiAdd(res.picks.slice(0, 4), "AI ADVICE");
-      if (added) {
+    // Chat-driven shopping: a named product ("add Aurora Black Belt") adds
+    // exactly that catalog item; only generic asks fall back to this turn's
+    // picks (max 2). The confirmation names what ACTUALLY landed in the bag.
+    if (onAiAdd && ADD_INTENT.test(text)) {
+      const outcome = await onAiAdd(text, res.picks || []);
+      if (outcome?.count) {
         setMessages((m) => [
           ...m,
           {
             role: "agent",
             agent: "ORCHESTRATOR",
             wid: "adidlabs/orchestrator-9f21",
-            text: `Done — ${added} item${added === 1 ? "" : "s"} added to your bag, tagged AI ADVICE. Open the bag to keep or remove them.`,
+            text: `Added to your bag (tagged AI ADVICE): ${outcome.titles.join(", ")}. Open the bag to keep or remove.`,
+          },
+        ]);
+      } else if (outcome?.already) {
+        setMessages((m) => [
+          ...m,
+          {
+            role: "agent",
+            agent: "ORCHESTRATOR",
+            wid: "adidlabs/orchestrator-9f21",
+            text: "Those picks are already in your bag — nothing new added.",
           },
         ]);
       }

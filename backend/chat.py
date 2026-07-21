@@ -335,6 +335,13 @@ def _invoke_runtime(user_id: str, message: str, session: dict[str, Any]) -> dict
 
     data.setdefault("mode", "live")
 
+    # The runtime reports its wid in "agent"; the drawer renders
+    # "{agent} · {wid}", so map to a friendly name + explicit wid (the wid was
+    # showing twice).
+    wid = str(data.get("wid") or data.get("agent") or _ROSTER["orchestrator"])
+    data["wid"] = wid
+    data["agent"] = "ORCHESTRATOR"
+
     # Always report the place + forecast the turn was grounded on: the
     # orchestrator reply covers picks, this line covers the context.
     context_line = _context_line(session)

@@ -213,11 +213,14 @@ class Orchestrator:
         for res in results:
             if res.get("status") != STATUS_OK or not res.get("picks"):
                 continue
+            # Friendly specialist name, never the internal wid (the ids kept
+            # leaking into LLM prose: "our adidlabs/jumper-6d3f Crew Jumper").
             wid = res.get("agent", "")
+            name = wid.rsplit("/", 1)[-1].split("-")[0] or "stylist"
             titles = ", ".join(
                 p.get("title", p.get("item_id", "item")) for p in res.get("picks", [])
             )
-            lines.append(f"- {wid}: {titles} — {res.get('rationale','')}".rstrip())
+            lines.append(f"- {name}: {titles} — {res.get('rationale','')}".rstrip())
         body = "\n".join(lines) if lines else "No picks matched this forecast."
 
         ask_line = f"For your {requested} ask — " if requested else ""
@@ -232,7 +235,11 @@ class Orchestrator:
                         "content": "You are the AdidLaBs stylist orchestrator. "
                         "Answer the shopper's actual question first, weaving the "
                         "specialist picks into one warm, concise reply (<=90 "
-                        "words). Keep the item names. No markdown headers.",
+                        "words). Keep the item names. You are ADVISORY ONLY: you "
+                        "cannot add items to the bag, cart, or perform any "
+                        "action — NEVER claim an item was added or an action "
+                        "was taken. Never output internal ids (anything like "
+                        "adidlabs/...). No markdown headers.",
                     },
                     {
                         "role": "user",

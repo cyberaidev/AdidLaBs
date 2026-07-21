@@ -401,7 +401,16 @@ PY
     aws iam put-role-policy --role-name "$runtime_role" \
       --policy-name adidlabs-invoke-litellm-url \
       --policy-document "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":\"lambda:InvokeFunctionUrl\",\"Resource\":\"$litellm_arn\",\"Condition\":{\"StringEquals\":{\"lambda:FunctionUrlAuthType\":\"AWS_IAM\"}}}]}"
-    ok "Runtime role can now reach LiteLLM (SigV4)."
+
+    # Data-plane access for the runtime's tool client (DynamoToolClient):
+    # scan/read the catalog, read/write bags, retrieve from the KB — so the
+    # mesh ranks the FULL 200-item catalog instead of the 10-item local seed.
+    local account_id
+    account_id="$(aws sts get-caller-identity --query Account --output text)"
+    aws iam put-role-policy --role-name "$runtime_role" \
+      --policy-name adidlabs-runtime-data-access \
+      --policy-document "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":[\"dynamodb:Scan\",\"dynamodb:Query\",\"dynamodb:GetItem\",\"dynamodb:PutItem\",\"dynamodb:UpdateItem\"],\"Resource\":[\"arn:aws:dynamodb:${REGION}:${account_id}:table/${CATALOG_TABLE}\",\"arn:aws:dynamodb:${REGION}:${account_id}:table/${BAG_TABLE}\"]},{\"Effect\":\"Allow\",\"Action\":\"bedrock:Retrieve\",\"Resource\":\"arn:aws:bedrock:${REGION}:${account_id}:knowledge-base/${KB_ID:-*}\"}]}"
+    ok "Runtime role can reach LiteLLM, the catalog/bag tables, and the KB."
   else
     log "WARNING: could not resolve runtime role or LiteLLM ARN — LLM calls will use template fallbacks."
   fi

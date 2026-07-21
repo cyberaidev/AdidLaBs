@@ -110,6 +110,21 @@ export default function App() {
     },
   ]);
   const aiKitRef = useRef(false);
+  const bagRef = useRef([]);
+  const fullCatalogRef = useRef(null);
+
+  useEffect(() => {
+    bagRef.current = bag;
+  }, [bag]);
+
+  // Full catalog (all categories), fetched once and cached — used to resolve
+  // chat asks that name a specific product ("add Aurora Black Belt").
+  async function ensureFullCatalog() {
+    if (fullCatalogRef.current) return fullCatalogRef.current;
+    const data = await getCatalog(null, 200);
+    fullCatalogRef.current = data?.items || [];
+    return fullCatalogRef.current;
+  }
 
   const railRef = useRef(null);
   const flipTimers = useRef([]);
@@ -223,30 +238,66 @@ export default function App() {
     ]);
   }
 
-  // Shared AI-add path: maps orchestrator picks to bag rows (correct catalog
-  // pricing), persists them, merges local state, and returns how many were
-  // added. Used by the login auto-kit ("AI CHOICE") and by chat-requested
-  // adds ("AI ADVICE").
-  function aiAddPicks(picks, label, tok = token) {
-    const rows = (picks || [])
-      .slice(0, 6)
-      .map((p, i) => pickToRow(p, i, label));
-    if (!rows.length) return 0;
-    setBag((prev) => {
-      const have = new Set(prev.map((r) => r.item_id));
-      return [...prev, ...rows.filter((r) => !have.has(r.item_id))];
-    });
+  // Persist ONLY rows not already in the bag (re-POSTing an existing row
+  // would retag an AI CHOICE as AI ADVICE and bump its qty), merge state,
+  // and return the fresh rows.
+  function addFreshRows(rows, tok = token) {
+    const have = new Set(bagRef.current.map((r) => r.item_id));
+    const fresh = (rows || []).filter((r) => !have.has(r.item_id));
+    if (!fresh.length) return [];
+    setBag((prev) => [
+      ...prev,
+      ...fresh.filter((r) => !prev.some((p) => p.item_id === r.item_id)),
+    ]);
     if (tok) {
       // Persist, then converge on the server's authoritative bag (canonical
       // prices, qty accumulation, ai notes) enriched with local images.
-      Promise.all(rows.map((row) => addToBag(tok, row))).then((resps) => {
+      Promise.all(fresh.map((row) => addToBag(tok, row))).then((resps) => {
         const last = resps.filter(Boolean).pop();
         if (last?.items?.length) {
           setBag((prev) => hydrate(last.items, [...prev, ...catalog]));
         }
       });
     }
-    return rows.length;
+    return fresh;
+  }
+
+  // Login auto-kit path ("AI CHOICE").
+  function aiAddPicks(picks, label, tok = token) {
+    const rows = (picks || []).slice(0, 6).map((p, i) => pickToRow(p, i, label));
+    return addFreshRows(rows, tok).length;
+  }
+
+  // Chat-driven add ("AI ADVICE"): when the shopper NAMES a product, add that
+  // exact catalog item (title tokens all present in the message); only a
+  // generic ask ("add something warm") falls back to at most two of this
+  // turn's picks. Returns {count, titles, already} for the confirmation line.
+  async function handleChatAdd(message, picks) {
+    const msgTokens = new Set(
+      (message || "").toLowerCase().split(/[^a-z0-9]+/).filter(Boolean)
+    );
+    const catalogFull = await ensureFullCatalog();
+    const named = catalogFull.filter((i) => {
+      const words = String(i.title || "")
+        .toLowerCase()
+        .split(/[^a-z0-9]+/)
+        .filter(Boolean);
+      return words.length > 1 && words.every((w) => msgTokens.has(w));
+    });
+    const rows = named.length
+      ? named.slice(0, 3).map((m) => ({
+          ...m,
+          image: productTile(m.category, m.title),
+          ai_pick: true,
+          ai_note: "AI ADVICE",
+        }))
+      : (picks || []).slice(0, 2).map((p, i) => pickToRow(p, i, "AI ADVICE"));
+    const fresh = addFreshRows(rows);
+    return {
+      count: fresh.length,
+      titles: fresh.map((r) => r.title),
+      already: fresh.length === 0 && rows.length > 0,
+    };
   }
 
   function hydrate(rows, cat) {
@@ -421,7 +472,7 @@ export default function App() {
           agents={agents}
           messages={chatMessages}
           onMessages={setChatMessages}
-          onAiAdd={(picks, label) => aiAddPicks(picks, label)}
+          onAiAdd={handleChatAdd}
           onClose={() => setDrawer(null)}
         />
       )}

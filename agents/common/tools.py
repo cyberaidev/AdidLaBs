@@ -182,15 +182,108 @@ class LocalToolClient:
         ][:max_results]
 
 
+class DynamoToolClient(LocalToolClient):
+    """Tools backed by the real AWS data plane.
+
+    Loads the full DynamoDB catalog once per container (200 demo rows, mapped
+    to the scoring shape the specialists rank against) and answers
+    ``search_lab_knowledge`` from the Bedrock Knowledge Base when ``KB_ID`` is
+    set. Every degradation is LOGGED (``[tools]`` lines land in the web
+    terminal) — silent fallbacks hid the fact the mesh only ever saw the
+    10-item local seed.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(items=self._load_catalog() or None)
+
+    @staticmethod
+    def _load_catalog() -> list[dict[str, Any]]:
+        import boto3  # runtime always ships boto3
+
+        table_name = os.environ.get("CATALOG_TABLE", "")
+        if not table_name:
+            return []
+        table = boto3.resource(
+            "dynamodb", region_name=os.environ.get("AWS_REGION", "ap-southeast-2")
+        ).Table(table_name)
+        rows: list[dict[str, Any]] = []
+        kwargs: dict[str, Any] = {}
+        while True:
+            resp = table.scan(**kwargs)
+            rows.extend(resp.get("Items", []))
+            key = resp.get("LastEvaluatedKey")
+            if not key:
+                break
+            kwargs["ExclusiveStartKey"] = key
+        norm: list[dict[str, Any]] = []
+        for it in rows:
+            original = float(it.get("original_price") or it.get("price") or 0)
+            current = float(it.get("price") or original)
+            norm.append({
+                "item_id": str(it.get("item_id", "")),
+                "category": str(it.get("category", "")).lower(),
+                "title": str(it.get("name") or it.get("title") or "Item"),
+                "price": current,
+                "original_price": original,
+                "deal_pct": int(it.get("discount_pct") or 0),
+                "base_colour": str(it.get("base_colour", "")),
+                "season": str(it.get("season", "")),
+                "usage": str(it.get("usage", "")),
+                "article_type": str(it.get("article_type", "")),
+                "gender": str(it.get("gender", "")),
+            })
+        return norm
+
+    def search_lab_knowledge(self, query: str, top_k: int = 4) -> list[dict[str, Any]]:
+        kb_id = os.environ.get("KB_ID", "")
+        if not kb_id:
+            return super().search_lab_knowledge(query, top_k)
+        try:
+            import boto3
+
+            rt = boto3.client(
+                "bedrock-agent-runtime",
+                region_name=os.environ.get("AWS_REGION", "ap-southeast-2"),
+            )
+            resp = rt.retrieve(
+                knowledgeBaseId=kb_id,
+                retrievalQuery={"text": query},
+                retrievalConfiguration={
+                    "vectorSearchConfiguration": {"numberOfResults": top_k}
+                },
+            )
+            return [
+                {
+                    "text": r.get("content", {}).get("text", ""),
+                    "source": (r.get("location", {}).get("s3Location") or {}).get("uri", ""),
+                    "score": float(r.get("score", 0.0)),
+                }
+                for r in resp.get("retrievalResults", [])
+            ]
+        except Exception as exc:  # noqa: BLE001 - degrade loudly, keep serving
+            print(f"[tools] KB retrieve fallback: {exc}", flush=True)
+            return super().search_lab_knowledge(query, top_k)
+
+
 def default_tool_client() -> ToolClient:
     """Return the tool client to use given the environment.
 
-    In production the AgentCore Gateway MCP client would be constructed here.
-    For DEMO_MODE / CI (and whenever no gateway is wired), return the in-process
-    :class:`LocalToolClient` so the graph is fully runnable.
+    When ``CATALOG_TABLE`` is set (the AgentCore runtime), try the real
+    DynamoDB-backed client so the mesh ranks the FULL catalog; degrade loudly
+    to the in-process :class:`LocalToolClient` (synthetic seed) on any error
+    so the graph stays runnable in CI / offline.
     """
-    # A real deployment swaps this branch for a Gateway-backed MCP client.
-    _ = os.environ.get("DEMO_MODE")  # documented switch; local client either way here
+    if os.environ.get("CATALOG_TABLE"):
+        try:
+            client = DynamoToolClient()
+            if len(client._items) > len(_BUILTIN_SEED):
+                print(f"[tools] DynamoDB catalog loaded: {len(client._items)} items",
+                      flush=True)
+                return client
+            print("[tools] DynamoDB catalog empty; using local seed", flush=True)
+        except Exception as exc:  # noqa: BLE001
+            print(f"[tools] DynamoDB catalog unavailable ({exc}); using local seed",
+                  flush=True)
     return LocalToolClient()
 
 
