@@ -331,6 +331,48 @@ Resources:
   # ===========================================================================
   # Cognito — user pool + app client (email sign-up)
   # ===========================================================================
+  # Demo UX: "register → chat opens" has no verification-code step, so a
+  # pre-sign-up trigger auto-confirms every account. Real deployments would
+  # drop this trigger and let Cognito email a verification code instead.
+  AutoConfirmFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "adidlabs-auto-confirm-${AWS::StackName}"
+      Runtime: python3.12
+      Handler: index.handler
+      Role: !GetAtt AutoConfirmRole.Arn
+      Timeout: 5
+      Code:
+        ZipFile: |
+          def handler(event, context):
+              event["response"]["autoConfirmUser"] = True
+              if "email" in event["request"].get("userAttributes", {}):
+                  event["response"]["autoVerifyEmail"] = True
+              return event
+      Tags:
+        - { Key: app, Value: adidlabs }
+
+  AutoConfirmRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "adidlabs-auto-confirm-role-${AWS::StackName}"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: lambda.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+
+  AutoConfirmInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref AutoConfirmFunction
+      Action: lambda:InvokeFunction
+      Principal: cognito-idp.amazonaws.com
+      SourceArn: !GetAtt UserPool.Arn
+
   UserPool:
     Type: AWS::Cognito::UserPool
     DeletionPolicy: Delete
@@ -340,6 +382,8 @@ Resources:
       # "Join the lab" sign-up uses email as the username/alias.
       UsernameAttributes: [email]
       AutoVerifiedAttributes: [email]
+      LambdaConfig:
+        PreSignUp: !GetAtt AutoConfirmFunction.Arn
       MfaConfiguration: "OFF"
       AdminCreateUserConfig:
         AllowAdminCreateUserOnly: false
