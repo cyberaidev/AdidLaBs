@@ -1290,3 +1290,68 @@ a {
   letter-spacing: 1px;
   cursor: pointer;
 }
+
+/* --- Hero weather-conditions media panel (banner mockup 2026-07-22) ------- */
+.hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  align-items: stretch;
+  gap: var(--s6);
+}
+.hero-copy {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+}
+.hero-grid .hero-h1 {
+  font-size: clamp(56px, 8.5vw, 118px);
+  white-space: nowrap;
+}
+.hero-media {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: var(--s3);
+  min-height: 340px;
+  align-content: center;
+}
+.season {
+  position: relative;
+  border: 2px solid var(--ink);
+  background: var(--paper);
+  box-shadow: var(--hard-shadow);
+  overflow: hidden;
+  display: block;
+}
+.season img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  filter: saturate(0.92) contrast(1.05);
+}
+.season-tag {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 4px 10px;
+}
+.season-tag .amber {
+  color: var(--amber);
+  font-weight: 700;
+}
+@media (max-width: 900px) {
+  .hero-grid {
+    grid-template-columns: 1fr;
+  }
+  .hero-media {
+    min-height: 260px;
+  }
+}

@@ -18,6 +18,34 @@ export const COPY = {
     labelBoxes: ["NEW", "AI STYLED", "3-DAY FORECAST"],
     cta: "SHOP NOW",
     ctaArrow: "→",
+    // Right-hand 2×2 weather-conditions photo panel (banner mockup 2026-07-22).
+    // Unsplash photos (Unsplash License — free to use, no branded goods shown).
+    media: [
+      {
+        src: "https://images.unsplash.com/photo-1601297183305-6df142704ea2?auto=format&fit=crop&w=800&q=80",
+        alt: "Sunny day — clear blue sky",
+        temp: "28°",
+        label: "SUNNY",
+      },
+      {
+        src: "https://images.unsplash.com/photo-1428592953211-077101b2021b?auto=format&fit=crop&w=800&q=80",
+        alt: "Raining — heavy rain on window",
+        temp: "14°",
+        label: "RAINING",
+      },
+      {
+        src: "https://images.unsplash.com/photo-1418985991508-e47386d96a71?auto=format&fit=crop&w=800&q=80",
+        alt: "Snow — snowfall in the forest",
+        temp: "2°",
+        label: "SNOW",
+      },
+      {
+        src: "https://images.unsplash.com/photo-1505672678657-cc7037095e60?auto=format&fit=crop&w=800&q=80",
+        alt: "Windy — trees bending in strong wind",
+        temp: "16°",
+        label: "WINDY",
+      },
+    ],
   },
 
   weatherBar: {
