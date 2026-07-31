@@ -5,7 +5,7 @@ import { AgentCard } from "./AgentCard.jsx";
 // Status flips standby → running after login (managed by App state).
 export function AgentsPanel({ agents, onTerminal }) {
   return (
-    <section className="section container">
+    <section className="section container agents-panel">
       <h2 className="section-heading">{COPY.agentsPanel.heading}</h2>
       <p className="section-sub">{COPY.agentsPanel.sub}</p>
       <div className="agents-grid">
