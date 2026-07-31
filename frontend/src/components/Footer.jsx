@@ -36,6 +36,13 @@ export function Footer() {
           ))}
         </div>
 
+        <div className="footer-powered">
+          <h4>POWERED BY</h4>
+          <p className="footer-stack">{COPY.hdr.poweredBy}</p>
+          <p className="footer-fine">{COPY.hdr.copyright}</p>
+          <p className="footer-fine">{COPY.hdr.builtOn}</p>
+        </div>
+
         <div className="footer-meta">
           <p>{f.buildLine}</p>
           <p className="footer-disclaimer">{f.disclaimer}</p>

@@ -44,10 +44,12 @@ export function CornerIcons({
         onClick={onChat}
       >
         <ChatIcon />
+        <span className="icon-label">STYLIST</span>
       </button>
 
       <button type="button" className="icon-btn" aria-label="Account" onClick={onAccount}>
         <UserIcon />
+        <span className="icon-label">ACCOUNT</span>
         {authed && <span className="user-dot" aria-hidden="true" />}
       </button>
 
@@ -58,11 +60,13 @@ export function CornerIcons({
         onClick={onWishlist}
       >
         <HeartIcon />
+        <span className="icon-label">FAVORITES</span>
         {wishlistCount > 0 && <span className="icon-badge">{wishlistCount}</span>}
       </button>
 
       <button type="button" className="icon-btn" aria-label="Bag" onClick={onBag}>
         <BagIcon />
+        <span className="icon-label">BAG</span>
         {bagCount > 0 && <span className="icon-badge">{bagCount}</span>}
       </button>
     </div>

@@ -117,6 +117,67 @@ export const COPY = {
       "Items tagged AI CHOICE were matched to your forecast by the stylist mesh — keep them, remove them, or add your own.",
   },
 
+  // HDR sections (dark redesign, 2026-07-22 mockup). All imagery is
+  // unbranded — the reference mockup showed three-stripes product photos,
+  // which the no-infringement rule forbids.
+  hdr: {
+    stats: [
+      { icon: "trend", label: "DEMAND ACCURACY", value: "96%", sub: "AI FORECAST CONFIDENCE" },
+      { icon: "cloud", label: "WEATHER COVERAGE", value: "195+", sub: "CITIES WORLDWIDE" },
+      { icon: "cube", label: "COLLECTIONS ANALYZED", value: "2.4K+", sub: "THIS SEASON" },
+      { icon: "signal", label: "TREND SIGNALS", value: "1.8M+", sub: "SOURCES SCANNED" },
+    ],
+    features: [
+      {
+        img: "https://images.unsplash.com/photo-1445205170230-053b83016050?auto=format&fit=crop&w=900&q=80",
+        alt: "Clothing collection hanging on a rail",
+        title: "COLLECTION FORECAST",
+        sub: "Predict what's next. Design with confidence.",
+        action: "rail",
+      },
+      {
+        img: "https://images.unsplash.com/photo-1428592953211-077101b2021b?auto=format&fit=crop&w=900&q=80",
+        alt: "Rain on glass",
+        title: "WEATHER IMPACT",
+        sub: "Real-time weather intelligence that shapes performance.",
+        action: "chat",
+      },
+      {
+        img: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=900&q=80",
+        alt: "Analytics dashboard in the dark",
+        title: "DEMAND INTELLIGENCE",
+        sub: "AI-powered insights that turn data into decisions.",
+        action: "telemetry",
+      },
+      {
+        img: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=900&q=80",
+        alt: "Portrait in low light",
+        title: "AI STYLIST",
+        sub: "Inspire. Curate. Create. AI that understands style.",
+        action: "chat",
+      },
+      {
+        img: "https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?auto=format&fit=crop&w=900&q=80",
+        alt: "Apparel store interior with hanging racks",
+        title: "RETAIL PERFORMANCE",
+        sub: "Optimize every store. Maximize every opportunity.",
+        action: "agents",
+      },
+    ],
+    banner: {
+      kicker: "AUTONOMOUS BUYING AGENT",
+      headline: "Your AI copilot for smarter buying decisions.",
+      cta: "LEARN MORE",
+      recLabel: "BUYING RECOMMENDATION",
+      recValue: "87%",
+      recSub: "CONFIDENCE",
+      recCta: "REVIEW",
+    },
+    poweredBy: "LITELLM · AWS · BEDROCK · SERVICES",
+    builtOn: "Built on AWS Bedrock AgentCore · Multi-Agent Workflows · MCP",
+    copyright: "© 2026 AdidLaBs. All rights reserved.",
+  },
+
   litellm: {
     heading: "LITELLM GATEWAY",
     sub: "Model telemetry via Bedrock",

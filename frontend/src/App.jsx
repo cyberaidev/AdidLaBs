@@ -29,6 +29,7 @@ import { TerminalDrawer } from "./components/TerminalDrawer.jsx";
 import { LiteLLMPanel } from "./components/LiteLLMPanel.jsx";
 import { AccountDrawer } from "./components/AccountDrawer.jsx";
 import { CategoryDrawer } from "./components/CategoryDrawer.jsx";
+import { StatsStrip, FeatureCards, AgentBanner } from "./components/HdrSections.jsx";
 
 // Decode a JWT payload (base64url) for display-only claims (email, sub).
 function parseJwt(token) {
@@ -417,7 +418,19 @@ export default function App() {
         onBag={() => setDrawer("bag")}
       />
       <HeroBanner onShopNow={scrollToRail} />
+      <StatsStrip />
       <WeatherBar authed={authed} session={session} weather={weather} />
+      <FeatureCards
+        onAction={(action) => {
+          if (action === "rail") scrollToRail();
+          else if (action === "chat") openChat();
+          else if (action === "agents" || action === "telemetry") {
+            document
+              .querySelector(action === "agents" ? ".agents-panel" : ".litellm-panel")
+              ?.scrollIntoView({ behavior: "smooth", block: "start" });
+          }
+        }}
+      />
 
       <main>
         <ProductRail
@@ -433,6 +446,7 @@ export default function App() {
         />
         <AgentsPanel agents={agents} onTerminal={openTerminal} />
         <LiteLLMPanel />
+        <AgentBanner onLearnMore={openChat} onReview={() => setDrawer("bag")} />
       </main>
 
       <Footer />
