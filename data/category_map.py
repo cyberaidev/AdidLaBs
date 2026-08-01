@@ -291,7 +291,8 @@ _NAME_ADJECTIVES = (
     "Aurora", "Zephyr", "Onyx", "Cascade", "Terra", "Lumen", "Nomad", "Verve",
 )
 
-# Neutral article-type nouns per category (never brand-derived).
+# Neutral article-type nouns per category (never brand-derived). Used only
+# when the row's articleType has no entry in _ARTICLE_NOUNS below.
 _NAME_NOUNS: Dict[str, tuple[str, ...]] = {
     "shoes": ("Runner", "Trainer", "Low", "Sneaker", "Boot", "Court", "Sandal"),
     "pants": ("Jean", "Trouser", "Chino", "Track Pant", "Short", "Legging"),
@@ -302,6 +303,35 @@ _NAME_NOUNS: Dict[str, tuple[str, ...]] = {
                   "Tote", "Wallet", "Cap"),
 }
 
+# articleType → product noun. Since the storefront displays each item's real
+# dataset photograph, the synthesized name must describe what the photo shows
+# — a backpack must not be named "Watch". Keys are normalized (lowercase).
+_ARTICLE_NOUNS: Dict[str, str] = {
+    # accessories
+    "backpacks": "Backpack", "belts": "Belt", "bracelet": "Bracelet",
+    "caps": "Cap", "clutches": "Clutch", "earrings": "Earrings",
+    "handbags": "Handbag", "laptop bag": "Laptop Bag", "pendant": "Pendant",
+    "ring": "Ring", "scarves": "Scarf", "shoe accessories": "Shoe Accessory",
+    "socks": "Socks", "sunglasses": "Sunglasses", "wallets": "Wallet",
+    "watches": "Watch",
+    # outerwear
+    "blazers": "Blazer", "jackets": "Jacket", "waistcoat": "Vest",
+    "sweaters": "Sweater", "sweatshirts": "Sweatshirt",
+    # legwear
+    "jeans": "Jean", "shorts": "Shorts", "skirts": "Skirt",
+    "track pants": "Track Pant", "trousers": "Trouser", "leggings": "Legging",
+    "capris": "Capri",
+    # footwear
+    "casual shoes": "Sneaker", "flats": "Flat", "flip flops": "Flip Flop",
+    "formal shoes": "Oxford", "heels": "Heel", "sandals": "Sandal",
+    "sports shoes": "Runner", "sports sandals": "Sandal",
+    # tops / innerwear
+    "boxers": "Boxer", "bra": "Bra", "briefs": "Brief",
+    "camisoles": "Camisole", "innerwear vests": "Vest", "kurtas": "Kurta",
+    "night suits": "Night Suit", "shirts": "Shirt", "shrug": "Shrug",
+    "tops": "Top", "tshirts": "Tee",
+}
+
 _COLOUR_WORDS = {
     "black", "white", "grey", "gray", "navy", "blue", "green", "olive", "brown",
     "tan", "red", "burgundy", "pink", "beige", "cream", "charcoal", "sand",
@@ -309,17 +339,24 @@ _COLOUR_WORDS = {
 }
 
 
-def synthesize_name(item_id: str, category: str, base_colour: str) -> str:
+def synthesize_name(
+    item_id: str, category: str, base_colour: str, article_type: str = ""
+) -> str:
     """Deterministic, brand-safe fictional product name.
 
     Form: "<Adjective> [<Colour>] <Noun>" — e.g. "Stratus Olive Runner".
-    Colour is included only when it's a recognised plain colour word (so we
-    never echo a brand token that happened to sit in the colour field).
+    The noun comes from the row's articleType (so the name matches the real
+    product photograph the storefront displays); the per-category pool is a
+    fallback for unmapped article types. Colour is included only when it's a
+    recognised plain colour word (so we never echo a brand token that
+    happened to sit in the colour field).
     """
     h = _hash_int(f"name:{item_id}:{category}")
     adj = _NAME_ADJECTIVES[h % len(_NAME_ADJECTIVES)]
-    nouns = _NAME_NOUNS.get(category, ("Piece",))
-    noun = nouns[(h >> 8) % len(nouns)]
+    noun = _ARTICLE_NOUNS.get(_norm(article_type))
+    if not noun:
+        nouns = _NAME_NOUNS.get(category, ("Piece",))
+        noun = nouns[(h >> 8) % len(nouns)]
 
     colour = _norm(base_colour).split()[0] if base_colour else ""
     colour_part = f" {colour.title()}" if colour in _COLOUR_WORDS else ""
@@ -346,7 +383,9 @@ def build_item(row: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         return None
     item_id = f"hf-{_norm(raw_id)}"
 
-    name = synthesize_name(item_id, category, row.get("baseColour", ""))
+    name = synthesize_name(
+        item_id, category, row.get("baseColour", ""), row.get("articleType", "")
+    )
     pricing = synthesize_price(item_id, category)
 
     return {
