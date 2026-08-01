@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Drawer } from "./Drawer.jsx";
 import { getCatalog } from "../api.js";
-import { productTile } from "../data/fallbackCatalog.js";
+import { fallbackForCategory, imageForItem } from "../data/productImages.js";
 
 function usd(n) {
   return `$${Number(n || 0).toFixed(2)}`;
@@ -72,7 +72,15 @@ export function CategoryDrawer({ category, onAddToBag, onClose }) {
             </p>
             {visible.map((item) => (
               <div key={item.item_id} className="line-item">
-                <img src={productTile(item.category, item.title)} alt="" />
+                <img
+                  src={imageForItem(item)}
+                  alt={item.title}
+                  loading="lazy"
+                  onError={(event) => {
+                    event.currentTarget.onerror = null;
+                    event.currentTarget.src = fallbackForCategory(item.category);
+                  }}
+                />
                 <div className="line-item-info">
                   <span className="line-item-title">{item.title}</span>
                   <span className="browse-meta">
@@ -95,7 +103,8 @@ export function CategoryDrawer({ category, onAddToBag, onClose }) {
                     onClick={() =>
                       onAddToBag({
                         ...item,
-                        image: productTile(item.category, item.title),
+                        image: imageForItem(item),
+                        image_url: item.image_url || imageForItem(item),
                       })
                     }
                   >

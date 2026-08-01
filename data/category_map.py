@@ -359,5 +359,8 @@ def build_item(row: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         "usage": _norm(row.get("usage")) or "casual",
         "article_type": _norm(row.get("articleType")),
         "source": "huggingface:ashraq/fashion-product-images-small",
+        # Site-relative path; data/fetch_images.py rehosts the actual photo
+        # onto the static site bucket after seeding.
+        "image_url": f"/catalog-img/hf-{_norm(raw_id)}.jpg",
         **pricing,
     }

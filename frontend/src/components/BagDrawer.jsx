@@ -1,5 +1,6 @@
 import { COPY } from "../copy.js";
 import { Drawer } from "./Drawer.jsx";
+import { fallbackForCategory, imageForItem } from "../data/productImages.js";
 
 function usd(n) {
   return `$${Number(n || 0).toFixed(2)}`;
@@ -38,7 +39,15 @@ export function BagDrawer({ items, onRemove, onClose }) {
         ) : (
           items.map((item) => (
             <div key={item.item_id} className="line-item">
-              {item.image && <img src={item.image} alt="" />}
+              <img
+                src={imageForItem(item)}
+                alt=""
+                loading="lazy"
+                onError={(event) => {
+                  event.currentTarget.onerror = null;
+                  event.currentTarget.src = fallbackForCategory(item.category);
+                }}
+              />
               <div className="line-item-info">
                 <span className="line-item-title">
                   {item.title}

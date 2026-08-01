@@ -12,7 +12,6 @@
 //   GET    /api/agents    agent roster + identities + status
 
 import { COPY } from "./copy.js";
-import { FALLBACK_CATALOG } from "./data/fallbackCatalog.js";
 
 const BASE = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
 
@@ -88,13 +87,11 @@ export async function getAgents(token) {
   return COPY.agents.map((a) => ({ ...a, status: "standby" }));
 }
 
-// Product-rail source (design.md §7.1 / :210). Items come from the catalog/deals
-// surfaced by the agents via GET /api/agents; when the backend is unreachable or
-// surfaces no recommendations we render the static forecast set. There is no
-// out-of-contract /api/catalog call.
+// Product-rail source: catalog/deals surfaced by the agents via GET /api/agents,
+// or null when the agents surfaced none — the App then seeds the rail from the
+// real /api/catalog (FALLBACK_CATALOG only when that is unreachable too).
 export async function getForecastRail(token) {
-  const rec = extractRecommendations(await getAgentsPayload(token));
-  return rec || FALLBACK_CATALOG;
+  return extractRecommendations(await getAgentsPayload(token));
 }
 
 export async function getBag(token) {

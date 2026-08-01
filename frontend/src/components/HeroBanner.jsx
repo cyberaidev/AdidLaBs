@@ -1,10 +1,8 @@
-import { COPY } from "../copy.js";
-
 export function HeroBanner({ onShopNow }) {
   return (
     <section className="hero hdr-hero">
       <div className="hero-atmosphere" aria-hidden="true" />
-      <div className="container hdr-hero-inner">
+      <div className="container hdr-hero-inner hdr-hero-two-col">
         <div className="hero-copy hdr-copy">
           <div className="hero-kicker">AI FORECAST INTELLIGENCE</div>
           <h2 className="hero-command">PREDICT.<br/>DESIGN.<br/>LAUNCH.</h2>
@@ -21,15 +19,6 @@ export function HeroBanner({ onShopNow }) {
           </h1>
           <div className="brand-rule"><span />AGENTIC DEMO <b>•</b> INTELLIGENT DECISIONS<span /></div>
           <div className="brand-stack">LITELLM <b>•</b> AWS <b>•</b> BEDROCK <b>•</b> SERVICES</div>
-        </div>
-
-        <div className="hero-weather-stack" aria-label="Weather conditions the lab dresses you for">
-          {COPY.hero.media.map((m, i) => (
-            <figure className={`season season-${i}`} key={m.label}>
-              <img src={m.src} alt={m.alt} loading="lazy" />
-              <figcaption className="season-tag"><span className="amber">{m.temp}</span> {m.label}</figcaption>
-            </figure>
-          ))}
         </div>
       </div>
     </section>

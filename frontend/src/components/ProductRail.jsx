@@ -7,7 +7,7 @@ import { ProductCard } from "./ProductCard.jsx";
 const BROWSE_CATEGORIES = ["SHOES", "PANTS", "TSHIRT", "JUMPER", "JACKET", "ACCESSORY"];
 
 export const ProductRail = forwardRef(function ProductRail(
-  { items, wishlist, onToggleHeart, onAddToBag, onBrowse },
+  { items, wishlist, onToggleHeart, onAddToBag, onBrowse, contextLine },
   ref
 ) {
   const heartedIds = new Set(wishlist.map((i) => i.item_id));
@@ -38,6 +38,7 @@ export const ProductRail = forwardRef(function ProductRail(
             hearted={heartedIds.has(item.item_id)}
             onToggleHeart={onToggleHeart}
             onAddToBag={onAddToBag}
+            contextLine={contextLine}
           />
         ))}
       </div>

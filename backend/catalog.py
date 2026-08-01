@@ -49,6 +49,21 @@ def _num(value: Any) -> float:
         return 0.0
 
 
+
+def _image_url(row: Mapping[str, Any]) -> str | None:
+    """Return the catalog photograph for a row.
+
+    Prefer the stored ``image_url``; otherwise derive the site-relative path
+    that data/fetch_images.py rehosts the HuggingFace product photo to. The
+    path is relative so it resolves against whatever CloudFront domain serves
+    the SPA. Metadata and the vector corpus stay authoritative — the image is
+    a display-only field.
+    """
+    item_id = str(row.get("item_id", ""))
+    if item_id.startswith("hf-") and item_id[3:].isdigit():
+        return f"/catalog-img/{item_id}.jpg"
+    return None
+
 def _display(row: Mapping[str, Any]) -> dict[str, Any]:
     """Map a catalog row to the SPA's item shape (price + optional deal)."""
     original = _num(row.get("original_price")) or _num(row.get("price"))
@@ -64,6 +79,7 @@ def _display(row: Mapping[str, Any]) -> dict[str, Any]:
         "article_type": row.get("article_type"),
         "gender": row.get("gender"),
         "season": row.get("season"),
+        "image_url": row.get("image_url") or _image_url(row),
     }
 
 

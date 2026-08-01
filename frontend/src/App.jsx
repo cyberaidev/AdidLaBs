@@ -6,11 +6,34 @@ import {
   getAgents,
   getForecastRail,
   getBag,
+  getCatalog,
   addToBag,
   removeFromBag,
   postChat,
 } from "./api.js";
-import { productTile } from "./data/fallbackCatalog.js";
+import { imageForItem } from "./data/productImages.js";
+import { FALLBACK_CATALOG } from "./data/fallbackCatalog.js";
+
+// Deals-first, category-balanced sample of the live catalog for the rail:
+// two picks per category (discounted items first) keeps every section
+// represented with real product photography.
+function railSample(items, perCategory = 2) {
+  const byCat = new Map();
+  const sorted = [...items].sort((a, b) => {
+    const aDeal = a.deal_price != null && a.deal_price < a.price ? 0 : 1;
+    const bDeal = b.deal_price != null && b.deal_price < b.price ? 0 : 1;
+    return aDeal - bDeal;
+  });
+  for (const it of sorted) {
+    const cat = String(it.category || "").toUpperCase();
+    const bucket = byCat.get(cat) || [];
+    if (bucket.length < perCategory) {
+      bucket.push(it);
+      byCat.set(cat, bucket);
+    }
+  }
+  return CATEGORY_ORDER.flatMap((c) => byCat.get(c) || []);
+}
 
 import { TopUtilityBar } from "./components/TopUtilityBar.jsx";
 import { Header } from "./components/Header.jsx";
@@ -60,13 +83,15 @@ function pickToRow(pick, index, label) {
   } else if (pct > 0 && base > 0) {
     dealPrice = Math.round(base * (1 - pct / 100) * 100) / 100;
   }
+  const item_id = pick.item_id || `ai-${category.toLowerCase()}-${index + 1}`;
   return {
-    item_id: pick.item_id || `ai-${category.toLowerCase()}-${index + 1}`,
+    item_id,
     title,
     category,
     price,
     deal_price: dealPrice,
-    image: productTile(category, title),
+    image: imageForItem({ ...pick, item_id, category }),
+    image_url: pick.image_url || null,
     ai_pick: true,
     ai_note: label,
   };
@@ -130,14 +155,26 @@ export default function App() {
   const railRef = useRef(null);
   const flipTimers = useRef([]);
 
-  // Product-rail items load immediately (static forecast set ensures the rail
-  // renders pre-deploy). Post-deploy these come from catalog/deals surfaced by the
-  // agents via GET /api/agents (design.md §7.1 / :210) — there is no /api/catalog route.
+  // Product-rail items load immediately. Preference order: catalog/deals the
+  // agents surfaced (GET /api/agents) → a deals-first, category-balanced sample
+  // of the real DynamoDB catalog (GET /api/catalog) → the static fallback set
+  // (pre-deploy / offline only).
   useEffect(() => {
     let alive = true;
-    getForecastRail(null).then((items) => {
-      if (alive) setCatalog(items);
-    });
+    (async () => {
+      const [agentRail, cat] = await Promise.all([
+        getForecastRail(null),
+        getCatalog(null, 200).catch(() => null),
+      ]);
+      if (!alive) return;
+      if (Array.isArray(agentRail) && agentRail.length) {
+        setCatalog(agentRail);
+      } else {
+        const items = cat?.items || [];
+        setCatalog(items.length ? railSample(items) : FALLBACK_CATALOG);
+        if (items.length) fullCatalogRef.current = items;
+      }
+    })();
     return () => {
       alive = false;
       flipTimers.current.forEach(clearTimeout);
@@ -288,7 +325,7 @@ export default function App() {
     const rows = named.length
       ? named.slice(0, 3).map((m) => ({
           ...m,
-          image: productTile(m.category, m.title),
+          image: imageForItem(m),
           ai_pick: true,
           ai_note: "AI ADVICE",
         }))
@@ -404,6 +441,20 @@ export default function App() {
     railRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
+  // Live 3-day temperature band for the product-card context line — no
+  // invented numbers: render nothing until the real forecast arrives.
+  const forecastBand = (() => {
+    const days = Array.isArray(weather) ? weather.slice(0, 3) : [];
+    const los = days
+      .map((d) => Number(d.lo ?? d.tempMin ?? d.temp_min))
+      .filter(Number.isFinite);
+    const his = days
+      .map((d) => Number(d.hi ?? d.tempMax ?? d.temp_max))
+      .filter(Number.isFinite);
+    if (!los.length || !his.length) return null;
+    return `FORECAST READY · ${Math.round(Math.min(...los))}–${Math.round(Math.max(...his))}°C`;
+  })();
+
   return (
     <>
       <TopUtilityBar />
@@ -437,6 +488,7 @@ export default function App() {
           ref={railRef}
           items={catalog}
           wishlist={wishlist}
+          contextLine={forecastBand}
           onToggleHeart={toggleHeart}
           onAddToBag={handleAddToBag}
           onBrowse={(cat) => {

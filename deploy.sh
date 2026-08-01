@@ -246,8 +246,11 @@ sync_assets() {
   # Hashed assets are immutable — cache them for a year. index.html must NEVER
   # be cached by the browser, or users keep running stale bundles long after a
   # deploy (CloudFront invalidation cannot purge a browser's own cache).
+  # catalog-img/ holds the rehosted product photographs (data/fetch_images.py)
+  # which are NOT in frontend/dist — exclude them or --delete wipes them.
   aws s3 sync frontend/dist "s3://$site_bucket/" --region "$REGION" --delete \
     --exclude "index.html" \
+    --exclude "catalog-img/*" \
     --cache-control "public,max-age=31536000,immutable"
   aws s3 cp frontend/dist/index.html "s3://$site_bucket/index.html" --region "$REGION" \
     --cache-control "no-cache,no-store,must-revalidate" \
@@ -273,6 +276,21 @@ seed_data() {
   AWS_REGION="$REGION" \
     python3 data/seed_dynamodb.py --table "$CATALOG_TABLE" --region "$REGION" --create-table
   ok "Catalog seeded into DynamoDB '$CATALOG_TABLE' (HF sample or synthetic_fallback.json)."
+
+  # 4a-bis. Rehost the catalog product photographs onto the site bucket
+  #     (catalog-img/hf-<id>.jpg) and stamp image_url on every row. Idempotent:
+  #     already-uploaded images are skipped. Non-fatal — the SPA falls back to
+  #     category photography for any row without a hosted image.
+  local site_bucket
+  site_bucket="$(cfn_output SiteBucketName)"
+  if [ -n "$site_bucket" ] && [ "$site_bucket" != "None" ]; then
+    python3 data/fetch_images.py --table "$CATALOG_TABLE" --region "$REGION" \
+      --bucket "$site_bucket" \
+      || echo "WARN: some catalog images failed to rehost (frontend falls back per category)"
+    ok "Catalog product photos rehosted → s3://$site_bucket/catalog-img/."
+  else
+    echo "WARN: SiteBucketName output missing — skipping product photo rehost."
+  fi
 
   # 4b. Generate the markdown KB corpus into data/kb_docs/. This is a required
   #     step: seed_dynamodb.py does NOT emit any corpus, and setup_kb.py (step 5)

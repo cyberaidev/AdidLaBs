@@ -1375,7 +1375,6 @@ body{background:radial-gradient(circle at 70% 8%,#24272c 0,#0b0c0e 30%,#050505 6
 .hdr-copy{padding-top:36px}.hero-kicker{color:var(--amber);font-size:13px;letter-spacing:.18em;font-weight:700;margin-bottom:18px}.hero-command{font-family:"Anton",sans-serif;font-size:clamp(62px,6vw,108px);line-height:.91;letter-spacing:.015em;color:#fff}.hero-intro{max-width:320px;color:#c3c5c8;font-size:18px;line-height:1.5;margin:22px 0 28px}.hero-actions{display:flex;gap:14px;flex-wrap:wrap}.shop-now{min-width:220px;padding:17px 24px;border:1px solid rgba(255,255,255,.55);box-shadow:none;font-size:13px;letter-spacing:.08em;font-weight:700}.primary-cta{background:var(--amber);border-color:var(--amber);color:#080808;display:flex;justify-content:space-between}.secondary-cta{background:rgba(0,0,0,.35);color:#fff}
 .hero-brand-lockup{text-align:center;align-self:center;transform:translateY(-6px)}.hero-brandword{white-space:nowrap;font-size:clamp(72px,8.2vw,142px);line-height:.9;text-shadow:0 8px 34px rgba(0,0,0,.78)}.hero-brandword .wm-anton{color:#fff}.hero-brandword .wm-serif{display:inline-block;color:var(--amber);font-family:"Anton",sans-serif;font-style:normal;margin:0 .02em}.falling-l{transform:translateY(14px) rotate(7deg)}.falling-b{transform:translateY(22px) rotate(15deg)}.falling-l::before,.falling-b::after{content:"";position:absolute;width:2px;height:28px;background:linear-gradient(var(--amber),transparent)}.falling-l::before{top:-34px;left:55%}.falling-b::after{bottom:-32px;left:48%}
 .brand-rule,.brand-stack{display:flex;justify-content:center;align-items:center;gap:13px;color:#fff;font-size:14px;letter-spacing:.23em}.brand-rule{margin-top:23px}.brand-rule span{height:1px;width:44px;background:#fff}.brand-rule b,.brand-stack b{color:var(--amber)}.brand-stack{margin-top:18px;font-size:12px}
-.hero-weather-stack{display:grid;grid-template-columns:1fr 1fr;gap:8px;align-self:end;margin-bottom:72px;opacity:.88}.hero-weather-stack .season{height:105px;border:1px solid rgba(255,255,255,.25);position:relative;overflow:hidden}.hero-weather-stack img{width:100%;height:100%;object-fit:cover;filter:grayscale(.6) contrast(1.2)}.hero-weather-stack .season-tag{position:absolute;bottom:0;left:0;right:0;padding:7px 8px;background:linear-gradient(transparent,rgba(0,0,0,.9));font-size:10px;color:#fff;letter-spacing:.08em}
 
 .weather-bar{background:#090909!important;border-top:1px solid #26282c!important;border-bottom:1px solid #26282c!important;color:#fff!important}.weather-bar .amber{color:var(--amber)}
 main,.products-section,.agents-panel,.litellm-section{background:#070707!important;color:#f6f6f3}.rail-heading,.agents-heading,.litellm-heading{color:#fff}.rail-sub,.agents-sub,.litellm-sub{color:#9ca1a8}
@@ -1423,3 +1422,36 @@ main,.products-section,.agents-panel,.litellm-section{background:#070707!importa
 .footer-fine{font-size:11px;color:#9ca1a8;margin:4px 0 0}
 @media(max-width:1100px){.hdr-features{grid-template-columns:repeat(2,1fr)}.hdr-stats-row{grid-template-columns:repeat(2,1fr)}.hdr-stat{border-left:none;border-top:1px solid #232529}.hdr-banner{grid-template-columns:1fr}.hdr-banner-right{text-align:left;justify-self:start}.hdr-banner-shoe{display:none}}
 @media(max-width:640px){.hdr-features{grid-template-columns:1fr}.hdr-stats-row{grid-template-columns:1fr}}
+
+/* ===== Real-photo catalog treatment (2HDR merge, 2026-07-31) ============== */
+/* Hero without the 4-season tile stack: copy + brand lockup, two columns. */
+.hdr-hero-inner.hdr-hero-two-col{grid-template-columns:minmax(300px,.85fr) minmax(520px,1.15fr)}
+
+/* Editorial product cards — photographs replace the SVG silhouettes. */
+.editorial-card{background:#0b0c0e;border:1px solid rgba(255,255,255,.17);box-shadow:none;overflow:hidden;transition:transform .25s ease,border-color .25s ease}
+.editorial-card:hover{transform:translateY(-7px);border-color:rgba(240,170,0,.65)}
+.editorial-card .card-media{aspect-ratio:4/5;background:#111}
+.editorial-card .card-media img{object-fit:cover;object-position:center;filter:saturate(.55) contrast(1.08) brightness(.88);transition:transform .5s ease,filter .4s ease}
+.editorial-card:hover .card-media img{transform:scale(1.045);filter:saturate(.92) contrast(1.03) brightness(1)}
+.card-image-overlay{position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.62),transparent 42%);pointer-events:none}
+.editorial-card .card-tag{top:14px;left:14px;background:#050505;color:#fff;padding:6px 9px;letter-spacing:.1em;font-size:10px;z-index:2}
+.card-ai-tag{position:absolute;top:14px;right:52px;background:var(--amber);color:#050505;padding:6px 9px;letter-spacing:.1em;font-size:10px;font-weight:700;z-index:2}
+.editorial-card .heart{top:12px;right:12px;background:rgba(0,0,0,.72);border:1px solid rgba(255,255,255,.45);box-shadow:none;z-index:3}
+.editorial-card .heart svg{stroke:#fff}
+.editorial-card .heart.active svg{fill:var(--deal-red);stroke:var(--deal-red)}
+.editorial-card .card-body{background:#0b0c0e;color:#fff;padding:18px}
+.card-context{color:var(--amber);font-size:9px;letter-spacing:.16em;margin-bottom:7px}
+.editorial-card .card-title{font-family:"Anton",sans-serif;font-size:20px;letter-spacing:.02em;color:#fff}
+.editorial-card .add-bag{margin-top:14px;min-height:42px;display:flex;justify-content:space-between;align-items:center;padding:0 14px;background:transparent;border:1px solid rgba(255,255,255,.55);color:#fff}
+.editorial-card .add-bag:hover{background:var(--amber);color:#050505;border-color:var(--amber)}
+
+/* Photograph thumbnails in bag / wishlist / browse rows. */
+.card-media img,.line-item img{object-fit:cover;object-position:center;background:#f4f4f2}
+.browse .line-item{display:grid;grid-template-columns:112px minmax(0,1fr);gap:16px;padding:16px 0;border-bottom:1px solid rgba(255,255,255,.12)}
+.browse .line-item img{width:112px;height:112px;border:1px solid rgba(255,255,255,.18)}
+.browse .line-item-title{font-size:1.05rem}
+.browse .browse-meta{text-transform:uppercase;letter-spacing:.08em}
+@media(max-width:720px){.browse .line-item{grid-template-columns:88px minmax(0,1fr)}.browse .line-item img{width:88px;height:88px}}
+
+/* Agent banner: real shoe photograph instead of the inverted silhouette. */
+.hdr-banner-shoe{filter:none;object-fit:cover;height:120px;border:1px solid #2b2d31}

@@ -1,5 +1,5 @@
 import { COPY } from "../copy.js";
-import { productTile } from "../data/fallbackCatalog.js";
+import { fallbackForCategory } from "../data/productImages.js";
 
 // HDR redesign sections (2026-07-22 mockup): KPI stats strip, photo feature
 // cards, and the autonomous-buying-agent banner. Presentation only — every
@@ -97,7 +97,7 @@ export function AgentBanner({ onLearnMore, onReview }) {
       </div>
       <img
         className="hdr-banner-shoe"
-        src={productTile("SHOES", "Forecast Runner")}
+        src={fallbackForCategory("SHOES")}
         alt=""
         aria-hidden="true"
       />
