@@ -74,10 +74,13 @@ def _filter(session: requests.Session, dataset: str, split: str, where: str,
     params = {"dataset": dataset, "config": "default", "split": split,
               "where": where, "limit": limit}
     for attempt in range(8):
-        r = session.get(FILTER_URL, params=params, timeout=60)
-        if r.ok and "rows" in r.json():
-            return r.json()["rows"]
-        time.sleep(3 * (attempt + 1))  # index warmup / throttling
+        try:
+            r = session.get(FILTER_URL, params=params, timeout=90)
+            if r.ok and "rows" in r.json():
+                return r.json()["rows"]
+        except requests.RequestException as exc:
+            print(f"[harvest] retry {attempt + 1}: {exc.__class__.__name__}")
+        time.sleep(3 * (attempt + 1))  # index warmup / throttling / timeouts
     print(f"[harvest] WARN gave up: {dataset} where={where[:50]}")
     return []
 

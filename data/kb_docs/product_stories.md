@@ -5,17 +5,17 @@ Short narrative blurbs per product, grouped by category. Agents retrieve these t
 ## Shoes
 
 - `pv-100002074-2` — A black boots built for casual days. The **Vesper Black Boots** pairs a cushioned ride with an all-weather outsole. On deal at **USD 91.69** (was USD 130.99, -30%).
-- `pv-100050716-2` — A beige sandal built for casual days. The **Aurora Beige Sandal** pairs a cushioned ride with an all-weather outsole. Priced at **USD 52.9**.
 - `pv-100099673-6` — A white sneaker built for casual days. The **Zephyr White Sneaker** pairs a cushioned ride with an all-weather outsole. On deal at **USD 45.43** (was USD 64.9, -30%).
-- `pv-100111991-3` — A gold sandal built for casual days. The **Vesper Gold Sandal** pairs a cushioned ride with an all-weather outsole. On deal at **USD 69.23** (was USD 98.9, -30%).
 - `pv-100119331-3` — A burgundy sneaker built for casual days. The **Quartz Burgundy Sneaker** pairs a cushioned ride with an all-weather outsole. Priced at **USD 171.9**.
 - `pv-100333714-3` — A burgundy boot built for casual days. The **Anchor Burgundy Boot** pairs a cushioned ride with an all-weather outsole. Priced at **USD 83.5**.
 - `pv-100364440-5` — A black boot built for casual days. The **Vector Black Boot** pairs a cushioned ride with an all-weather outsole. On deal at **USD 31.95** (was USD 63.9, -50%).
-- `pv-100443358-2` — A black sandal built for casual days. The **Harbor Black Sandal** pairs a cushioned ride with an all-weather outsole. On deal at **USD 129.6** (was USD 162.0, -20%).
 - `pv-100475925-4` — A black boot built for casual days. The **Willow Black Boot** pairs a cushioned ride with an all-weather outsole. Priced at **USD 107.9**.
 - `pv-100606145-2` — A black sneaker built for casual days. The **Marlowe Black Sneaker** pairs a cushioned ride with an all-weather outsole. Priced at **USD 74.9**.
 - `pv-100841439-4` — A brown boots built for casual days. The **Cirrus Brown Boots** pairs a cushioned ride with an all-weather outsole. Priced at **USD 136.95**.
-- `pv-100926139-3` — A black sandal built for casual days. The **Cirrus Black Sandal** pairs a cushioned ride with an all-weather outsole. On deal at **USD 98.39** (was USD 163.99, -40%).
+- `pv-100937795-4` — A tan heel built for casual days. The **Loft Tan Heel** pairs a cushioned ride with an all-weather outsole. Priced at **USD 185.95**.
+- `pv-101268017-4` — A brown boot built for casual days. The **Harbor Brown Boot** pairs a cushioned ride with an all-weather outsole. Priced at **USD 64.0**.
+- `pv-101277108-5` — A black rain boots built for casual days. The **Aurora Black Rain Boots** pairs a cushioned ride with an all-weather outsole. On deal at **USD 131.31** (was USD 145.9, -10%).
+- `pv-101310439-3` — A beige boots built for casual days. The **Halcyon Beige Boots** pairs a cushioned ride with an all-weather outsole. Priced at **USD 137.99**.
 
 ## Pants
 
