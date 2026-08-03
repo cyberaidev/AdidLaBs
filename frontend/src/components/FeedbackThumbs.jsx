@@ -3,7 +3,9 @@ import { postFeedback } from "../api.js";
 
 // Thumbs up/down on a product photograph. Works signed-out (POST
 // /api/feedback is public); one vote per item per browser, remembered in
-// localStorage. Optimistic counts — the server response reconciles them.
+// localStorage. Votes are reversible — clicking the active thumb retracts,
+// clicking the other thumb switches. Optimistic counts — the server response
+// reconciles them.
 
 const LS_KEY = "adidlabs-photo-votes";
 
@@ -18,7 +20,8 @@ function readVotes() {
 function saveVote(itemId, vote) {
   try {
     const votes = readVotes();
-    votes[itemId] = vote;
+    if (vote) votes[itemId] = vote;
+    else delete votes[itemId];
     localStorage.setItem(LS_KEY, JSON.stringify(votes));
   } catch {
     /* private mode — vote still posts, just not remembered */
@@ -45,11 +48,15 @@ export function FeedbackThumbs({ item }) {
   });
 
   async function vote(kind) {
-    if (voted) return; // one vote per browser
-    setVoted(kind);
-    saveVote(item.item_id, kind);
-    setCounts((c) => ({ ...c, [kind]: c[kind] + 1 }));
-    const resp = await postFeedback(item.item_id, kind);
+    const previous = voted;
+    const next = previous === kind ? null : kind; // same thumb again = retract
+    setVoted(next);
+    saveVote(item.item_id, next);
+    setCounts((c) => ({
+      up: Math.max(0, c.up + (next === "up" ? 1 : 0) - (previous === "up" ? 1 : 0)),
+      down: Math.max(0, c.down + (next === "down" ? 1 : 0) - (previous === "down" ? 1 : 0)),
+    }));
+    const resp = await postFeedback(item.item_id, next || "none", previous);
     if (resp && Number.isFinite(resp.up)) {
       setCounts({ up: resp.up, down: resp.down });
     }
@@ -60,9 +67,8 @@ export function FeedbackThumbs({ item }) {
       <button
         type="button"
         className={`fb-thumb ${voted === "up" ? "active" : ""}`}
-        aria-label="Good photo"
+        aria-label={voted === "up" ? "Remove your vote" : "Good photo"}
         aria-pressed={voted === "up"}
-        disabled={Boolean(voted)}
         onClick={(e) => {
           e.stopPropagation();
           vote("up");
@@ -74,9 +80,8 @@ export function FeedbackThumbs({ item }) {
       <button
         type="button"
         className={`fb-thumb ${voted === "down" ? "active" : ""}`}
-        aria-label="Wrong or poor photo"
+        aria-label={voted === "down" ? "Remove your vote" : "Wrong or poor photo"}
         aria-pressed={voted === "down"}
-        disabled={Boolean(voted)}
         onClick={(e) => {
           e.stopPropagation();
           vote("down");

@@ -150,10 +150,11 @@ export function getTelemetry() {
 }
 
 // Photo feedback (public — works for anonymous visitors): thumbs up/down on a
-// catalog item. Returns { item_id, up, down } or null.
-export function postFeedback(itemId, vote) {
+// catalog item. Votes are reversible: vote "none" + previous retracts, a
+// different vote + previous switches. Returns { item_id, up, down } or null.
+export function postFeedback(itemId, vote, previous) {
   return request("POST", "/api/feedback", {
-    body: { item_id: itemId, vote },
+    body: { item_id: itemId, vote, previous: previous || null },
   });
 }
 
