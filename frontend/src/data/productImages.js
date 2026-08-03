@@ -25,9 +25,9 @@ const CATEGORY_FALLBACKS = {
 export function imageForItem(item = {}) {
   if (item.image_url) return item.image_url;
   if (item.image) return item.image;
-  // hf-<id> = original ashraq seed, kt-<id> = ktrinh38 rebuild — both rehosted
-  // under the same site prefix by the data pipelines.
-  const match = String(item.item_id || "").match(/^((?:hf|kt)-\d+)$/i);
+  // hf- (ashraq), kt- (ktrinh38), hm- (H&M captions), pv- (polyvore) — all
+  // rehosted under the same site prefix by the data pipelines.
+  const match = String(item.item_id || "").match(/^((?:hf|kt|hm)-\d+|pv-[\d-]+)$/i);
   if (match) return `/catalog-img/${match[1].toLowerCase()}.jpg`;
   return fallbackForCategory(item.category);
 }

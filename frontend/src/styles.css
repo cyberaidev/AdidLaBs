@@ -1468,3 +1468,9 @@ main,.products-section,.agents-panel,.litellm-section{background:#070707!importa
 .browse .line-item-media .fb-thumbs{left:6px;bottom:6px}
 .browse .line-item-media .fb-thumb{padding:3px 5px}
 .browse .line-item-media .fb-thumb svg{width:11px;height:11px}
+
+/* Auth popup form fields: white so typed text is always visible (the dark
+   token flip had turned --paper near-black, black-on-black inputs). */
+.modal .field input{background:#fff;color:#0a0a0a;caret-color:#0a0a0a;border:1px solid #3a3c40}
+.modal .field input:focus{outline:2px solid var(--amber);outline-offset:0;border-color:var(--amber)}
+.modal .field input::placeholder{color:#6b6a64}

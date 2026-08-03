@@ -61,7 +61,7 @@ def _image_url(row: Mapping[str, Any]) -> str | None:
     """
     item_id = str(row.get("item_id", ""))
     prefix, _, raw = item_id.partition("-")
-    if prefix in ("hf", "kt") and raw.isdigit():
+    if prefix in ("hf", "kt", "hm", "pv") and raw.replace("-", "").isdigit():
         return f"/catalog-img/{item_id}.jpg"
     return None
 
