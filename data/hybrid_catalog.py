@@ -51,7 +51,7 @@ HM_HARVEST: dict[str, list[str]] = {
     "jacket": ["bomber", "windbreaker", "jacket", "parka", "padded"],
     "pants": ["joggers", "cargo", "jeans", "shorts", "sweatpants", "trousers"],
     "accessory": ["cap with", "bucket hat", "beanie", "belt with", "backpack",
-                  "shoulder bag", "sunglasses"],
+                  "shoulder bag"],
 }
 HM_PER_KEYWORD = 12
 HM_TARGETS = {"tshirt": 34, "jumper": 34, "jacket": 34, "pants": 34,
@@ -61,7 +61,7 @@ HM_TARGETS = {"tshirt": 34, "jumper": 34, "jacket": 34, "pants": 34,
 PV_HARVEST: list[tuple[str, str, int]] = [  # (pv category, section, candidates)
     ("Sneakers", "shoes", 30), ("Boots", "shoes", 14), ("Sandals", "shoes", 10),
     ("Backpacks", "accessory", 10), ("Watches", "accessory", 10),
-    ("Sunglasses", "accessory", 10),
+    # Sunglasses dropped from the range per Stefano (2026-08-03).
 ]
 PV_TARGETS = {"shoes": 34, "accessory": 17}
 

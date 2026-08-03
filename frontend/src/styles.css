@@ -1473,3 +1473,50 @@ main,.products-section,.agents-panel,.litellm-section{background:#070707!importa
 .modal .field input{background:#fff;color:#0a0a0a;caret-color:#0a0a0a;border:1px solid #3a3c40}
 .modal .field input:focus{outline:2px solid var(--amber);outline-offset:0;border-color:var(--amber)}
 .modal .field input::placeholder{color:#6b6a64}
+
+/* ===== Smartphone pass (2026-08-03) ====================================== */
+@media(max-width:760px){
+  /* Hero: single column, lockup above the copy; natural height. The
+     two-col grid class was overriding the old stacking rule. */
+  .hdr-hero{height:auto;min-height:0;max-height:none}
+  .hdr-hero-inner,.hdr-hero-inner.hdr-hero-two-col{grid-template-columns:1fr;height:auto;min-height:0;padding-top:48px;padding-bottom:44px;gap:26px}
+  .hero-brand-lockup{order:-1;transform:none}
+  .hero-brandword{font-size:54px}
+  .hero-command{font-size:52px}
+  .hero-kicker{margin-bottom:12px}
+  .hero-intro{max-width:none}
+  .hero-actions{width:100%}
+  .hdr-hero::before{background-position:center top}
+
+  /* Weather strip: allow wrapping day chips. */
+  .weather-bar{flex-wrap:wrap;row-gap:4px;font-size:11.5px;line-height:1.5;text-align:center}
+
+  /* Drawers (chat, bag, wishlist, browse, terminal, account): full width. */
+  .drawer{width:100vw;max-width:100vw}
+
+  /* Auth popup: breathe inside the viewport. */
+  .modal{max-width:calc(100vw - 32px)}
+
+  /* Stats strip: compact two-up. */
+  .hdr-stats-row{grid-template-columns:1fr 1fr}
+  .hdr-stat{padding:18px 14px;gap:10px;border-top:1px solid #232529;border-left:none}
+  .hdr-stat-value{font-size:26px}
+  .hdr-stat-icon svg{width:26px;height:26px}
+
+  /* Feature cards + banner already collapse; tighten spacing. */
+  .hdr-features{gap:10px;padding-top:18px}
+  .hdr-banner{padding:20px 18px;gap:14px}
+  .hdr-banner-headline{font-size:18px}
+
+  /* Rail cards: single column with slimmer body. */
+  .rail-grid{grid-template-columns:1fr}
+  .editorial-card .card-title{font-size:18px}
+
+  /* Browse rows: smaller thumbs handled at 720px; ensure search input fits. */
+  .browse-search{width:100%;box-sizing:border-box}
+}
+@media(max-width:479px){
+  .hero-brandword{font-size:46px}
+  .hero-command{font-size:46px}
+  .hdr-stats-row{grid-template-columns:1fr}
+}

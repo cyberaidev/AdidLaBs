@@ -79,18 +79,18 @@ Short narrative blurbs per product, grouped by category. Agents retrieve these t
 
 ## Accessory
 
-- `pv-100002074-4` — The **Anchor Black Sunglasses** rounds out the look — a black sunglasses that earns its place in any all-season kit. Priced at **USD 60.0**.
 - `pv-100010727-4` — The **Aurora Black Watch** rounds out the look — a black watch that earns its place in any all-season kit. Priced at **USD 10.5**.
-- `pv-100010727-5` — The **Relay Black Sunglasses** rounds out the look — a black sunglasses that earns its place in any all-season kit. On deal at **USD 46.79** (was USD 77.99, -40%).
-- `pv-100029003-3` — The **Onyx Gold Sunglasses** rounds out the look — a gold sunglasses that earns its place in any all-season kit. Priced at **USD 23.0**.
 - `pv-100050716-3` — The **Solace Black Backpack** rounds out the look — a black backpack that earns its place in any all-season kit. On deal at **USD 43.05** (was USD 61.5, -30%).
-- `pv-100095342-6` — The **Cabin Black Sunglasses** rounds out the look — a black sunglasses that earns its place in any all-season kit. Priced at **USD 29.9**.
 - `pv-100099673-2` — The **Terra Red Backpack** rounds out the look — a red backpack that earns its place in any all-season kit. Priced at **USD 47.95**.
 - `pv-100111991-5` — The **Frost Gold Watch** rounds out the look — a gold watch that earns its place in any all-season kit. Priced at **USD 41.99**.
-- `pv-100111991-7` — The **Haven Gold Sunglasses** rounds out the look — a gold sunglasses that earns its place in any all-season kit. Priced at **USD 54.95**.
-- `pv-100119147-7` — The **Meridian Black Sunglasses** rounds out the look — a black sunglasses that earns its place in any all-season kit. Priced at **USD 83.9**.
 - `pv-100119331-4` — The **Onyx Grey Backpack** rounds out the look — a grey backpack that earns its place in any all-season kit. Priced at **USD 14.95**.
-- `pv-100176564-7` — The **Dune Brown Sunglasses** rounds out the look — a brown sunglasses that earns its place in any all-season kit. Priced at **USD 31.0**.
+- `pv-100950405-5` — The **Marlowe Gold Watch** rounds out the look — a gold watch that earns its place in any all-season kit. Priced at **USD 35.9**.
+- `pv-101037004-5` — The **Halcyon Black Watch** rounds out the look — a black watch that earns its place in any all-season kit. Priced at **USD 53.95**.
+- `pv-101303866-8` — The **Ridge Green Watch** rounds out the look — a green watch that earns its place in any all-season kit. Priced at **USD 88.5**.
+- `pv-101370154-4` — The **Atlas Watch** rounds out the look — a rose gold watch that earns its place in any all-season kit. Priced at **USD 26.95**.
+- `pv-101676130-4` — The **Quartz Black Backpack** rounds out the look — a black backpack that earns its place in any all-season kit. Priced at **USD 73.5**.
+- `pv-102004691-5` — The **Beacon Gold Watch** rounds out the look — a gold watch that earns its place in any all-season kit. On deal at **USD 24.85** (was USD 35.5, -30%).
+- `pv-102027839-5` — The **Drift Brown Backpack** rounds out the look — a brown backpack that earns its place in any all-season kit. On deal at **USD 68.0** (was USD 85.0, -20%).
 
 ---
 *Concept demo - no affiliation with adidas AG. All products fictional.*
