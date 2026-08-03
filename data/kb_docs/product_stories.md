@@ -4,79 +4,93 @@ Short narrative blurbs per product, grouped by category. Agents retrieve these t
 
 ## Shoes
 
-- `hf-9204` — A black casual shoes built for casual days. The **Pulse Black Runner** pairs a cushioned ride with an all-weather outsole. Priced at **USD 119.0**.
-- `hf-18653` — A black flip flops built for casual days. The **Summit Black Boot** pairs a cushioned ride with an all-weather outsole. Priced at **USD 70.0**.
-- `hf-46885` — A navy blue flip flops built for casual days. The **Ridge Navy Sandal** pairs a cushioned ride with an all-weather outsole. Priced at **USD 99.9**.
-- `hf-12967` — A black sandals built for casual days. The **Willow Black Sandal** pairs a cushioned ride with an all-weather outsole. Priced at **USD 67.9**.
-- `hf-9036` — A black formal shoes built for formal days. The **Loft Black Boot** pairs a cushioned ride with an all-weather outsole. On deal at **USD 50.85** (was USD 56.5, -10%).
-- `hf-39988` — A white casual shoes built for casual days. The **Loft White Sneaker** pairs a cushioned ride with an all-weather outsole. On deal at **USD 142.8** (was USD 178.5, -20%).
-- `hf-59051` — A black flats built for casual days. The **Meridian Black Trainer** pairs a cushioned ride with an all-weather outsole. Priced at **USD 90.95**.
-- `hf-2886` — A brown flats built for casual days. The **Sterling Brown Trainer** pairs a cushioned ride with an all-weather outsole. Priced at **USD 123.95**.
-- `hf-3168` — A white sports shoes built for sports days. The **Sterling White Runner** pairs a cushioned ride with an all-weather outsole. Priced at **USD 180.95**.
-- `hf-10268` — A black formal shoes built for formal days. The **Anchor Black Trainer** pairs a cushioned ride with an all-weather outsole. Priced at **USD 78.99**.
-- `hf-59435` — A black formal shoes built for formal days. The **Relay Black Trainer** pairs a cushioned ride with an all-weather outsole. On deal at **USD 57.3** (was USD 95.5, -40%).
-- `hf-22198` — A black casual shoes built for casual days. The **Solace Black Low** pairs a cushioned ride with an all-weather outsole. On deal at **USD 63.2** (was USD 79.0, -20%).
+- `kt-10079` — A black sandal built for casual days. The **Vesper Black Sandal** pairs a cushioned ride with an all-weather outsole. Priced at **USD 85.95**.
+- `kt-10083` — A green flip flops built for casual days. The **Stratus Green Flip Flops** pairs a cushioned ride with an all-weather outsole. On deal at **USD 104.31** (was USD 115.9, -10%).
+- `kt-10114` — A black sandal built for casual days. The **Orbit Black Sandal** pairs a cushioned ride with an all-weather outsole. Priced at **USD 62.9**.
+- `kt-10115` — A grey sandal built for casual days. The **Vesper Grey Sandal** pairs a cushioned ride with an all-weather outsole. Priced at **USD 130.9**.
+- `kt-10127` — A brown oxford built for casual days. The **Drift Brown Oxford** pairs a cushioned ride with an all-weather outsole. On deal at **USD 164.66** (was USD 182.95, -10%).
+- `kt-10128` — A black wingtip built for formal days. The **Halcyon Black Wingtip** pairs a cushioned ride with an all-weather outsole. Priced at **USD 68.0**.
+- `kt-10129` — A brown oxford built for formal days. The **Cascade Brown Oxford** pairs a cushioned ride with an all-weather outsole. Priced at **USD 132.0**.
+- `kt-10142` — A brown casual boot built for casual days. The **Ember Brown Casual Boot** pairs a cushioned ride with an all-weather outsole. On deal at **USD 143.09** (was USD 158.99, -10%).
+- `kt-10143` — A brown oxford built for formal days. The **Loft Brown Oxford** pairs a cushioned ride with an all-weather outsole. Priced at **USD 178.5**.
+- `kt-10144` — A brown wingtip built for casual days. The **Summit Brown Wingtip** pairs a cushioned ride with an all-weather outsole. On deal at **USD 87.57** (was USD 145.95, -40%).
+- `kt-10145` — A brown wingtip built for formal days. The **Ridge Brown Wingtip** pairs a cushioned ride with an all-weather outsole. On deal at **USD 159.3** (was USD 177.0, -10%).
+- `kt-10146` — A black formal shoe built for formal days. The **Anchor Black Formal Shoe** pairs a cushioned ride with an all-weather outsole. Priced at **USD 77.0**.
 
 ## Pants
 
-- `hf-39386` — The **Anchor Blue Legging** is a blue jeans cut for casual wear — comfortable through a full summer forecast. On deal at **USD 37.03** (was USD 52.9, -30%).
-- `hf-21379` — The **Orbit Black Trouser** is a black track pants cut for casual wear — comfortable through a full fall forecast. Priced at **USD 80.9**.
-- `hf-18005` — The **Atlas Black Legging** is a black shorts cut for sports wear — comfortable through a full summer forecast. On deal at **USD 39.45** (was USD 78.9, -50%).
-- `hf-54924` — The **Anchor Blue Chino** is a blue shorts cut for casual wear — comfortable through a full summer forecast. Priced at **USD 109.95**.
-- `hf-28456` — The **Solace Blue Jean** is a blue skirts cut for sports wear — comfortable through a full summer forecast. On deal at **USD 27.59** (was USD 45.99, -40%).
-- `hf-26994` — The **Relay Black Chino** is a black jeans cut for casual wear — comfortable through a full summer forecast. Priced at **USD 86.0**.
-- `hf-10257` — The **Nimbus Black Jean** is a black trousers cut for formal wear — comfortable through a full fall forecast. On deal at **USD 93.2** (was USD 116.5, -20%).
-- `hf-32563` — The **Cirrus Blue Short** is a blue trousers cut for casual wear — comfortable through a full summer forecast. On deal at **USD 68.59** (was USD 97.99, -30%).
-- `hf-15341` — The **Verve Pink Jean** is a pink shorts cut for sports wear — comfortable through a full fall forecast. On deal at **USD 53.1** (was USD 88.5, -40%).
-- `hf-7193` — The **Marlowe Black Legging** is a black jeans cut for casual wear — comfortable through a full fall forecast. Priced at **USD 115.0**.
+- `kt-10004` — The **Relay Grey Shorts** is a grey shorts cut for sports wear — comfortable through a full fall forecast. Priced at **USD 111.5**.
+- `kt-10011` — The **Stratus Grey Track Pants** is a grey track pants cut for sports wear — comfortable through a full summer forecast. Priced at **USD 102.99**.
+- `kt-10012` — The **Relay Navy Track Pants** is a navy track pants cut for sports wear — comfortable through a full fall forecast. On deal at **USD 89.99** (was USD 99.99, -10%).
+- `kt-10018` — The **Marlowe Black Track Pants** is a black track pants cut for sports wear — comfortable through a full fall forecast. On deal at **USD 39.49** (was USD 78.99, -50%).
+- `kt-10020` — The **Halcyon Black Shorts** is a black shorts cut for sports wear — comfortable through a full summer forecast. Priced at **USD 99.99**.
+- `kt-10021` — The **Anchor White Shorts** is a white shorts cut for sports wear — comfortable through a full spring forecast. Priced at **USD 116.9**.
+- `kt-10023` — The **Sterling Grey Track Pants** is a grey track pants cut for sports wear — comfortable through a full fall forecast. On deal at **USD 71.05** (was USD 101.5, -30%).
+- `kt-10033` — The **Tempest Black Shorts** is a black shorts cut for sports wear — comfortable through a full fall forecast. Priced at **USD 109.0**.
+- `kt-10052` — The **Vesper Black Shorts** is a black shorts cut for casual wear — comfortable through a full fall forecast. Priced at **USD 54.99**.
+- `kt-10257` — The **Loft Black Trousers** is a black trousers cut for formal wear — comfortable through a full fall forecast. Priced at **USD 91.99**.
+- `kt-10258` — The **Orbit Navy Trousers** is a navy trousers cut for formal wear — comfortable through a full fall forecast. Priced at **USD 35.5**.
+- `kt-10259` — The **Meridian Black Trousers** is a black trousers cut for formal wear — comfortable through a full fall forecast. Priced at **USD 114.0**.
 
 ## Tshirt
 
-- `hf-15970` — The **Dune Navy Henley** is a navy blue shirts in a breathable weave, an easy base layer for fall conditions. Priced at **USD 20.9**.
-- `hf-53759` — The **Halcyon Grey Henley** is a grey tshirts in a breathable weave, an easy base layer for summer conditions. On deal at **USD 17.7** (was USD 29.5, -40%).
-- `hf-1855` — The **Onyx Grey Top** is a grey tshirts in a breathable weave, an easy base layer for summer conditions. Priced at **USD 15.95**.
-- `hf-30805` — The **Harbor Green Ringer Tee** is a green shirts in a breathable weave, an easy base layer for summer conditions. On deal at **USD 18.9** (was USD 27.0, -30%).
-- `hf-26960` — The **Cabin Top** is a purple shirts in a breathable weave, an easy base layer for summer conditions. Priced at **USD 31.5**.
-- `hf-12369` — The **Aurora Tee** is a purple shirts in a breathable weave, an easy base layer for fall conditions. On deal at **USD 8.0** (was USD 16.0, -50%).
-- `hf-42419` — The **Cascade White Tee** is a white tops in a breathable weave, an easy base layer for summer conditions. Priced at **USD 47.9**.
-- `hf-51832` — The **Cascade Beige Top** is a beige bra in a breathable weave, an easy base layer for summer conditions. On deal at **USD 25.83** (was USD 36.9, -30%).
-- `hf-7990` — The **Atlas Navy Henley** is a navy blue tshirts in a breathable weave, an easy base layer for fall conditions. Priced at **USD 20.5**.
-- `hf-37812` — The **Ember Navy Tee** is a navy blue shirts in a breathable weave, an easy base layer for summer conditions. On deal at **USD 20.72** (was USD 25.9, -20%).
-- `hf-4729` — The **Vesper Green Henley** is a green tshirts in a breathable weave, an easy base layer for summer conditions. On deal at **USD 21.25** (was USD 42.5, -50%).
-- `hf-56825` — The **Relay Brown Henley** is a brown shirts in a breathable weave, an easy base layer for summer conditions. On deal at **USD 13.77** (was USD 22.95, -40%).
+- `kt-1531` — The **Quartz Grey T-Shirt** is a grey t-shirt in a breathable weave, an easy base layer for fall conditions. Priced at **USD 26.9**.
+- `kt-1532` — The **Nomad Grey Tee** is a grey tee in a breathable weave, an easy base layer for fall conditions. Priced at **USD 35.0**.
+- `kt-1533` — The **Halcyon Red Tee** is a red tee in a breathable weave, an easy base layer for fall conditions. Priced at **USD 18.9**.
+- `kt-1534` — The **Willow Black Tee** is a black tee in a breathable weave, an easy base layer for fall conditions. On deal at **USD 31.46** (was USD 34.95, -10%).
+- `kt-1538` — The **Nomad Black Tee** is a black tee in a breathable weave, an easy base layer for fall conditions. On deal at **USD 27.16** (was USD 33.95, -20%).
+- `kt-1539` — The **Lumen Grey Tee** is a grey tee in a breathable weave, an easy base layer for fall conditions. On deal at **USD 39.51** (was USD 43.9, -10%).
+- `kt-1540` — The **Onyx Black Polo** is a black polo in a breathable weave, an easy base layer for fall conditions. Priced at **USD 53.9**.
+- `kt-1561` — The **Frost White Tee** is a white tee in a breathable weave, an easy base layer for fall conditions. On deal at **USD 25.6** (was USD 32.0, -20%).
+- `kt-1562` — The **Quartz Blue Tee** is a blue tee in a breathable weave, an easy base layer for fall conditions. Priced at **USD 42.5**.
+- `kt-1563` — The **Beacon Blue T-Shirt** is a blue t-shirt in a breathable weave, an easy base layer for fall conditions. Priced at **USD 19.5**.
+- `kt-1575` — The **Frost White T-Shirt** is a white t-shirt in a breathable weave, an easy base layer for summer conditions. On deal at **USD 17.94** (was USD 29.9, -40%).
+- `kt-1578` — The **Vector Red Tee** is a red tee in a breathable weave, an easy base layer for fall conditions. Priced at **USD 27.5**.
 
 ## Jumper
 
-- `hf-13089` — The **Terra Grey Hoodie** is a grey sweatshirts that traps warmth without bulk — the go-to mid-layer when the forecast turns cool. Priced at **USD 124.95**.
-- `hf-23876` — The **Verve Blue Cardigan** is a blue sweatshirts that traps warmth without bulk — the go-to mid-layer when the forecast turns cool. On deal at **USD 67.9** (was USD 97.0, -30%).
-- `hf-19547` — The **Verve Blue Hoodie** is a blue sweatshirts that traps warmth without bulk — the go-to mid-layer when the forecast turns cool. On deal at **USD 88.17** (was USD 125.95, -30%).
-- `hf-11385` — The **Cove Black Cardigan** is a black sweatshirts that traps warmth without bulk — the go-to mid-layer when the forecast turns cool. On deal at **USD 74.0** (was USD 147.99, -50%).
-- `hf-19540` — The **Frost Blue Crew** is a blue sweaters that traps warmth without bulk — the go-to mid-layer when the forecast turns cool. On deal at **USD 81.6** (was USD 102.0, -20%).
-- `hf-46411` — The **Lumen Black Sweatshirt** is a black sweatshirts that traps warmth without bulk — the go-to mid-layer when the forecast turns cool. Priced at **USD 100.5**.
+- `kt-10029` — The **Signal Navy Sweatshirt** is a navy sweatshirt that traps warmth without bulk — the go-to mid-layer when the forecast turns cool. Priced at **USD 145.9**.
+- `kt-10371` — The **Nomad Black Sweatshirt** is a black sweatshirt that traps warmth without bulk — the go-to mid-layer when the forecast turns cool. On deal at **USD 111.56** (was USD 123.95, -10%).
+- `kt-10568` — The **Onyx Navy Sweater** is a navy sweater that traps warmth without bulk — the go-to mid-layer when the forecast turns cool. Priced at **USD 145.95**.
+- `kt-10572` — The **Frost Red Sweater** is a red sweater that traps warmth without bulk — the go-to mid-layer when the forecast turns cool. Priced at **USD 78.5**.
+- `kt-11073` — The **Quartz Black Sweater** is a black sweater that traps warmth without bulk — the go-to mid-layer when the forecast turns cool. Priced at **USD 45.0**.
+- `kt-11074` — The **Terra Blue Sweater** is a blue sweater that traps warmth without bulk — the go-to mid-layer when the forecast turns cool. Priced at **USD 109.5**.
+- `kt-11075` — The **Nomad Blue Sweater** is a blue sweater that traps warmth without bulk — the go-to mid-layer when the forecast turns cool. Priced at **USD 130.0**.
+- `kt-11076` — The **Dune Black Sweater** is a black sweater that traps warmth without bulk — the go-to mid-layer when the forecast turns cool. On deal at **USD 101.5** (was USD 145.0, -30%).
+- `kt-11077` — The **Ember Sweater** is a purple sweater that traps warmth without bulk — the go-to mid-layer when the forecast turns cool. Priced at **USD 115.9**.
+- `kt-11078` — The **Zephyr Grey Sweater** is a grey sweater that traps warmth without bulk — the go-to mid-layer when the forecast turns cool. Priced at **USD 123.9**.
+- `kt-11093` — The **Signal White Cardigan** is a white cardigan that traps warmth without bulk — the go-to mid-layer when the forecast turns cool. Priced at **USD 142.5**.
+- `kt-11094` — The **Lumen Black Sweater** is a black sweater that traps warmth without bulk — the go-to mid-layer when the forecast turns cool. Priced at **USD 113.99**.
 
 ## Jacket
 
-- `hf-8580` — The **Cove Grey Coat** is a grey waistcoat engineered to shrug off wind and rain, the outer layer for an unsettled forecast. Priced at **USD 228.99**.
-- `hf-27846` — The **Atlas Charcoal Wind Runner** is a charcoal blazers engineered to shrug off wind and rain, the outer layer for an unsettled forecast. Priced at **USD 185.9**.
-- `hf-6889` — The **Meridian Cream Shell** is a cream jackets engineered to shrug off wind and rain, the outer layer for an unsettled forecast. Priced at **USD 140.95**.
-- `hf-6887` — The **Solace Blue Vest** is a blue jackets engineered to shrug off wind and rain, the outer layer for an unsettled forecast. Priced at **USD 134.5**.
-- `hf-19744` — The **Relay Green Shell** is a green jackets engineered to shrug off wind and rain, the outer layer for an unsettled forecast. On deal at **USD 201.59** (was USD 251.99, -20%).
-- `hf-13241` — The **Harbor White Vest** is a white jackets engineered to shrug off wind and rain, the outer layer for an unsettled forecast. On deal at **USD 187.92** (was USD 234.9, -20%).
+- `kt-10017` — The **Quartz Blue Windbreaker** is a blue windbreaker engineered to shrug off wind and rain, the outer layer for an unsettled forecast. Priced at **USD 82.9**.
+- `kt-10777` — The **Marlowe Windbreaker** is a purple windbreaker engineered to shrug off wind and rain, the outer layer for an unsettled forecast. On deal at **USD 154.35** (was USD 171.5, -10%).
+- `kt-11273` — The **Sterling Blue Jacket** is a blue jacket engineered to shrug off wind and rain, the outer layer for an unsettled forecast. Priced at **USD 89.95**.
+- `kt-11368` — The **Cirrus Black Cardigan** is a black cardigan engineered to shrug off wind and rain, the outer layer for an unsettled forecast. Priced at **USD 103.0**.
+- `kt-12532` — The **Ember Black Jacket** is a black jacket engineered to shrug off wind and rain, the outer layer for an unsettled forecast. Priced at **USD 146.9**.
+- `kt-12533` — The **Nomad Jacket** is a purple jacket engineered to shrug off wind and rain, the outer layer for an unsettled forecast. On deal at **USD 147.0** (was USD 245.0, -40%).
+- `kt-12808` — The **Vector Blue Windbreaker** is a blue windbreaker engineered to shrug off wind and rain, the outer layer for an unsettled forecast. On deal at **USD 101.75** (was USD 203.5, -50%).
+- `kt-12809` — The **Tempest Green Windbreaker** is a green windbreaker engineered to shrug off wind and rain, the outer layer for an unsettled forecast. On deal at **USD 62.45** (was USD 124.9, -50%).
+- `kt-13092` — The **Dune White Track Jacket** is a white track jacket engineered to shrug off wind and rain, the outer layer for an unsettled forecast. Priced at **USD 202.9**.
+- `kt-13104` — The **Onyx Black Track Jacket** is a black track jacket engineered to shrug off wind and rain, the outer layer for an unsettled forecast. On deal at **USD 146.26** (was USD 208.95, -30%).
+- `kt-13105` — The **Zephyr Black Rainjacket** is a black rainjacket engineered to shrug off wind and rain, the outer layer for an unsettled forecast. Priced at **USD 76.9**.
+- `kt-13120` — The **Stratus Navy Rainjacket** is a navy rainjacket engineered to shrug off wind and rain, the outer layer for an unsettled forecast. On deal at **USD 146.69** (was USD 162.99, -10%).
 
 ## Accessory
 
-- `hf-59263` — The **Nomad Silver Tote** rounds out the look — a silver watches that earns its place in any winter kit. Priced at **USD 73.95**.
-- `hf-29114` — The **Marlowe Navy Belt** rounds out the look — a navy blue socks that earns its place in any summer kit. Priced at **USD 86.95**.
-- `hf-30039` — The **Vector Black Watch** rounds out the look — a black watches that earns its place in any winter kit. Priced at **USD 20.5**.
-- `hf-48123` — The **Onyx Black Scarf** rounds out the look — a black belts that earns its place in any summer kit. Priced at **USD 13.95**.
-- `hf-47957` — The **Atlas Blue Watch** rounds out the look — a blue handbags that earns its place in any summer kit. Priced at **USD 49.95**.
-- `hf-29928` — The **Terra Black Tote** rounds out the look — a black watches that earns its place in any winter kit. On deal at **USD 44.1** (was USD 63.0, -30%).
-- `hf-47359` — The **Sterling Brown Sunglasses** rounds out the look — a brown handbags that earns its place in any summer kit. Priced at **USD 19.9**.
-- `hf-17429` — The **Drift Black Beanie** rounds out the look — a black watches that earns its place in any winter kit. On deal at **USD 18.59** (was USD 30.99, -40%).
-- `hf-6842` — The **Aurora Black Belt** rounds out the look — a black shoe accessories that earns its place in any summer kit. On deal at **USD 35.98** (was USD 71.95, -50%).
-- `hf-48311` — The **Verve Daypack** rounds out the look — a bronze bracelet that earns its place in any winter kit. Priced at **USD 39.9**.
-- `hf-21977` — The **Verve Brown Daypack** rounds out the look — a brown handbags that earns its place in any winter kit. Priced at **USD 80.9**.
-- `hf-58183` — The **Nimbus White Scarf** rounds out the look — a white handbags that earns its place in any summer kit. Priced at **USD 24.0**.
+- `kt-10014` — The **Lumen Blue Cap** rounds out the look — a blue cap that earns its place in any fall kit. Priced at **USD 62.5**.
+- `kt-10098` — The **Atlas Black Watch** rounds out the look — a black watch that earns its place in any winter kit. Priced at **USD 84.99**.
+- `kt-10099` — The **Harbor Grey Watch** rounds out the look — a grey watch that earns its place in any winter kit. Priced at **USD 11.5**.
+- `kt-10105` — The **Tempest Silver Watch** rounds out the look — a silver watch that earns its place in any winter kit. On deal at **USD 26.4** (was USD 44.0, -40%).
+- `kt-10106` — The **Dune Silver Watch** rounds out the look — a silver watch that earns its place in any winter kit. On deal at **USD 35.7** (was USD 59.5, -40%).
+- `kt-10107` — The **Ember Black Watch** rounds out the look — a black watch that earns its place in any winter kit. On deal at **USD 48.57** (was USD 80.95, -40%).
+- `kt-10108` — The **Ridge Silver Watch** rounds out the look — a silver watch that earns its place in any winter kit. Priced at **USD 47.99**.
+- `kt-10109` — The **Summit Silver Watch** rounds out the look — a silver watch that earns its place in any winter kit. Priced at **USD 86.9**.
+- `kt-10130` — The **Nimbus Black Watch** rounds out the look — a black watch that earns its place in any winter kit. Priced at **USD 83.99**.
+- `kt-10131` — The **Dune Brown Watch** rounds out the look — a brown watch that earns its place in any winter kit. Priced at **USD 66.5**.
+- `kt-10133` — The **Summit Black Watch** rounds out the look — a black watch that earns its place in any winter kit. Priced at **USD 23.99**.
+- `kt-10134` — The **Vesper Black Watch** rounds out the look — a black watch that earns its place in any winter kit. On deal at **USD 40.95** (was USD 45.5, -10%).
 
 ---
 *Concept demo - no affiliation with adidas AG. All products fictional.*

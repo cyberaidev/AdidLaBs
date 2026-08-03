@@ -21,7 +21,7 @@ export const COPY = {
   },
 
   weatherBar: {
-    lockedText: "WEATHER LAB LOCKED — JOIN THE LAB TO SEE YOUR 3-DAY FORECAST",
+    lockedText: "READING YOUR LOCAL FORECAST…",
   },
 
   rail: {

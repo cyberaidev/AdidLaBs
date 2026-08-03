@@ -1,6 +1,7 @@
 import { COPY } from "../copy.js";
 import { HeartIcon } from "./icons.jsx";
 import { fallbackForCategory, imageForItem } from "../data/productImages.js";
+import { FeedbackThumbs } from "./FeedbackThumbs.jsx";
 
 function usd(n) {
   return `$${Number(n || 0).toFixed(2)}`;
@@ -25,6 +26,7 @@ export function ProductCard({ item, hearted, onToggleHeart, onAddToBag, contextL
         <div className="card-image-overlay" aria-hidden="true" />
         <span className="card-tag">{item.category}</span>
         {item.ai_pick && <span className="card-ai-tag">{item.ai_note || "AGENT PICK"}</span>}
+        <FeedbackThumbs item={item} />
         <button
           type="button"
           className={`heart ${hearted ? "active" : ""}`}

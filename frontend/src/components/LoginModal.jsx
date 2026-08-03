@@ -6,7 +6,7 @@ import { login } from "../auth.js";
 
 // LOG IN modal (§5.12). Shown after registration. On success App auto-opens the
 // stylist chat, reveals the weather bar, and flips agents to running.
-export function LoginModal({ prefillEmail, onAuthed, onSwitchToRegister }) {
+export function LoginModal({ prefillEmail, onAuthed, onSwitchToRegister, onClose }) {
   const [email, setEmail] = useState(prefillEmail || "");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -31,7 +31,7 @@ export function LoginModal({ prefillEmail, onAuthed, onSwitchToRegister }) {
   }
 
   return (
-    <Modal titleId="login-title" dismissible={true} onClose={onSwitchToRegister}>
+    <Modal titleId="login-title" dismissible={true} onClose={onClose || onSwitchToRegister}>
       <div className="modal-head">
         <Wordmark />
         <h2 className="modal-title" id="login-title">

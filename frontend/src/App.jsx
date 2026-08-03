@@ -104,12 +104,16 @@ const STANDBY_ROSTER = COPY.agents.map((a) => ({ ...a, status: "standby" }));
 const CATEGORY_ORDER = ["SHOES", "PANTS", "TSHIRT", "JUMPER", "JACKET", "ACCESSORY"];
 
 export default function App() {
-  // Gating state (§7). Mandatory order: RegistrationGate → LoginModal → authed.
-  const [registered, setRegistered] = useState(false);
+  // Auth state (§7 rev.): the storefront is fully browsable anonymously —
+  // the register/login popup appears only when the visitor clicks an
+  // account-gated action (Account, Bag, add-to-bag, Stylist, terminal).
   const [authed, setAuthed] = useState(false);
-  const [showLogin, setShowLogin] = useState(false);
+  const [authPopup, setAuthPopup] = useState(null); // null | 'register' | 'login'
   const [pendingEmail, setPendingEmail] = useState("");
   const [token, setToken] = useState(null);
+  // The action the visitor was attempting when the popup opened; replayed
+  // right after a successful login.
+  const pendingIntentRef = useRef(null); // { type: 'drawer'|'add', ... } | null
 
   // Data state.
   const [session, setSession] = useState(null);
@@ -181,6 +185,29 @@ export default function App() {
     };
   }, []);
 
+  // Anonymous bootstrap — /api/session, /api/weather and /api/agents are
+  // public routes, so time/location, the live 3-day forecast, and the agent
+  // roster all render before any login. Agents stay STANDBY until auth.
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const [sess, wx, roster] = await Promise.all([
+        getSession(null),
+        getWeather(null),
+        getAgents(null),
+      ]);
+      if (!alive) return;
+      if (sess) setSession(sess);
+      if (wx) setWeather(Array.isArray(wx) ? wx : wx.days || wx.forecast || null);
+      if (roster && roster.length) {
+        setAgents(roster.map((a) => ({ ...a, status: "standby" })));
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   // Progressively flip agent statuses standby → running after login.
   const startAgentFlip = useCallback((roster) => {
     // Clear any timers still pending from a prior flip before scheduling new ones,
@@ -201,14 +228,37 @@ export default function App() {
     });
   }, []);
 
-  // Post-login bootstrap: session, weather, agents, bag; open chat; flip agents.
+  // Post-login bootstrap: session, weather, agents, bag; flip agents. Opens
+  // the drawer the visitor was originally after (pending intent), or the
+  // stylist chat by default (§5.12); a pending add-to-bag replays too.
   const onAuthed = useCallback(
     async ({ token: tok, email }) => {
       setToken(tok);
       setUserEmail(email || parseJwt(tok).email || "");
       setAuthed(true);
-      setShowLogin(false);
-      setDrawer("chat"); // stylist chat auto-opens (§5.12)
+      setAuthPopup(null);
+
+      const intent = pendingIntentRef.current;
+      pendingIntentRef.current = null;
+      if (intent?.type === "drawer") {
+        if (intent.drawer === "terminal") setTerminalAgent(null);
+        setDrawer(intent.drawer);
+      } else if (intent?.type === "add" && intent.item) {
+        // Replay the add the visitor attempted while signed out.
+        setBag((prev) =>
+          prev.some((i) => i.item_id === intent.item.item_id)
+            ? prev
+            : [...prev, intent.item]
+        );
+        addToBag(tok, intent.item).then((resp) => {
+          if (resp?.items?.length) {
+            setBag((prev) => hydrate(resp.items, [...prev, ...catalog]));
+          }
+        });
+        setDrawer("bag");
+      } else {
+        setDrawer("chat"); // stylist chat auto-opens (§5.12)
+      }
 
       const [sess, wx, roster, railItems, bagItems] = await Promise.all([
         getSession(tok),
@@ -364,9 +414,20 @@ export default function App() {
     );
   }
 
-  // Add to bag — optimistic local update, then converge on the server's
-  // authoritative bag from the POST response.
+  // Open the auth popup remembering what the visitor was trying to do; the
+  // intent replays right after login. New visitors land on JOIN THE LAB.
+  function requireAuth(intent) {
+    pendingIntentRef.current = intent || null;
+    setAuthPopup(pendingEmail ? "login" : "register");
+  }
+
+  // Add to bag — account-gated (the bag is per-user server state). Signed-in:
+  // optimistic local update, then converge on the server's authoritative bag.
   function handleAddToBag(item) {
+    if (!authed) {
+      requireAuth({ type: "add", item });
+      return;
+    }
     setBag((prev) =>
       prev.some((i) => i.item_id === item.item_id) ? prev : [...prev, item]
     );
@@ -394,43 +455,50 @@ export default function App() {
     setWishlist((prev) => prev.filter((i) => i.item_id !== itemId));
   }
 
-  // Account icon: account drawer when signed in, login otherwise.
+  // Account icon: account drawer when signed in, auth popup otherwise.
   function openAccount() {
-    if (!registered) return; // gate is already blocking
     if (!authed) {
-      setShowLogin(true);
+      requireAuth({ type: "drawer", drawer: "account" });
       return;
     }
     setDrawer("account");
   }
 
-  // Sign out: clear all session state back to the registered-but-logged-out view.
+  // Sign out: back to anonymous browsing — the storefront stays fully
+  // visible; only per-user state (bag, chat, terminal) drops.
   function signOut() {
     setAuthed(false);
     setToken(null);
     setUserEmail("");
-    setSession(null);
-    setWeather(null);
     setBag([]);
     setDrawer(null);
     aiKitRef.current = false;
-    setAgents(STANDBY_ROSTER);
-    setShowLogin(true);
+    setAgents((prev) => prev.map((a) => ({ ...a, status: "standby" })));
   }
 
-  // Chat icon: reopen the stylist drawer (login first when signed out).
+  // Chat icon: reopen the stylist drawer (auth popup first when signed out —
+  // POST /api/chat is a JWT route).
   function openChat() {
     if (!authed) {
-      if (registered) setShowLogin(true);
+      requireAuth({ type: "drawer", drawer: "chat" });
       return;
     }
     setDrawer("chat");
   }
 
-  // Agent-card terminal: read that agent's runtime session lines (login first).
+  // Bag icon: per-user server state — auth popup first when signed out.
+  function openBag() {
+    if (!authed) {
+      requireAuth({ type: "drawer", drawer: "bag" });
+      return;
+    }
+    setDrawer("bag");
+  }
+
+  // Agent-card terminal: runtime session logs are a JWT route as well.
   function openTerminal(agent) {
     if (!authed) {
-      if (registered) setShowLogin(true);
+      requireAuth({ type: "drawer", drawer: "terminal" });
       return;
     }
     setTerminalAgent(agent || null);
@@ -466,11 +534,11 @@ export default function App() {
         onChat={openChat}
         onAccount={openAccount}
         onWishlist={() => setDrawer("wishlist")}
-        onBag={() => setDrawer("bag")}
+        onBag={openBag}
       />
       <HeroBanner onShopNow={scrollToRail} />
       <StatsStrip />
-      <WeatherBar authed={authed} session={session} weather={weather} />
+      <WeatherBar session={session} weather={weather} />
       <FeatureCards
         onAction={(action) => {
           if (action === "rail") scrollToRail();
@@ -503,28 +571,29 @@ export default function App() {
 
       <Footer />
 
-      {/* Gating: registration must complete before login (§7). */}
-      {!registered && (
+      {/* Auth popup — opened only by account-gated actions; dismissible. */}
+      {!authed && authPopup === "register" && (
         <RegistrationGate
           onRegistered={(email) => {
             setPendingEmail(email);
-            setRegistered(true);
-            setShowLogin(true);
+            setAuthPopup("login");
           }}
-          onSwitchToLogin={() => {
-            setRegistered(true);
-            setShowLogin(true);
+          onSwitchToLogin={() => setAuthPopup("login")}
+          onClose={() => {
+            pendingIntentRef.current = null;
+            setAuthPopup(null);
           }}
         />
       )}
 
-      {registered && !authed && showLogin && (
+      {!authed && authPopup === "login" && (
         <LoginModal
           prefillEmail={pendingEmail}
           onAuthed={onAuthed}
-          onSwitchToRegister={() => {
-            setShowLogin(false);
-            setRegistered(false);
+          onSwitchToRegister={() => setAuthPopup("register")}
+          onClose={() => {
+            pendingIntentRef.current = null;
+            setAuthPopup(null);
           }}
         />
       )}

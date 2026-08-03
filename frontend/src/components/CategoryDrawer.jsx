@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Drawer } from "./Drawer.jsx";
 import { getCatalog } from "../api.js";
 import { fallbackForCategory, imageForItem } from "../data/productImages.js";
+import { FeedbackThumbs } from "./FeedbackThumbs.jsx";
 
 function usd(n) {
   return `$${Number(n || 0).toFixed(2)}`;
@@ -72,15 +73,18 @@ export function CategoryDrawer({ category, onAddToBag, onClose }) {
             </p>
             {visible.map((item) => (
               <div key={item.item_id} className="line-item">
-                <img
-                  src={imageForItem(item)}
-                  alt={item.title}
-                  loading="lazy"
-                  onError={(event) => {
-                    event.currentTarget.onerror = null;
-                    event.currentTarget.src = fallbackForCategory(item.category);
-                  }}
-                />
+                <span className="line-item-media">
+                  <img
+                    src={imageForItem(item)}
+                    alt={item.title}
+                    loading="lazy"
+                    onError={(event) => {
+                      event.currentTarget.onerror = null;
+                      event.currentTarget.src = fallbackForCategory(item.category);
+                    }}
+                  />
+                  <FeedbackThumbs item={item} />
+                </span>
                 <div className="line-item-info">
                   <span className="line-item-title">{item.title}</span>
                   <span className="browse-meta">

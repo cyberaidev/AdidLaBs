@@ -149,6 +149,14 @@ export function getTelemetry() {
   return request("GET", "/api/telemetry", {});
 }
 
+// Photo feedback (public — works for anonymous visitors): thumbs up/down on a
+// catalog item. Returns { item_id, up, down } or null.
+export function postFeedback(itemId, vote) {
+  return request("POST", "/api/feedback", {
+    body: { item_id: itemId, vote },
+  });
+}
+
 // Posts a chat turn; returns { reply, agent, wid } shape or a deterministic demo
 // reply when the backend is unreachable so the drawer always responds.
 export async function postChat(token, message, context) {

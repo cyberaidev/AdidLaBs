@@ -16,10 +16,12 @@ function weatherEmoji(code) {
   return "🌡️";
 }
 
-// Black weather strip — GATED. Before auth shows a locked placeholder; after login
-// renders location + local time + three day chips fed by /api/session + /api/weather.
-export function WeatherBar({ authed, session, weather }) {
-  if (!authed) {
+// Black weather strip. /api/session and /api/weather are public routes, so
+// location + local time + the three day chips render for anonymous visitors
+// too (the storefront is fully browsable without an account). The locked
+// placeholder only shows while the public bootstrap is still in flight.
+export function WeatherBar({ session, weather }) {
+  if (!session && !weather) {
     return (
       <div className="weather-bar locked" role="status">
         <LockIcon />

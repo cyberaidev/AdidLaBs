@@ -60,7 +60,8 @@ def _image_url(row: Mapping[str, Any]) -> str | None:
     a display-only field.
     """
     item_id = str(row.get("item_id", ""))
-    if item_id.startswith("hf-") and item_id[3:].isdigit():
+    prefix, _, raw = item_id.partition("-")
+    if prefix in ("hf", "kt") and raw.isdigit():
         return f"/catalog-img/{item_id}.jpg"
     return None
 
@@ -80,6 +81,9 @@ def _display(row: Mapping[str, Any]) -> dict[str, Any]:
         "gender": row.get("gender"),
         "season": row.get("season"),
         "image_url": row.get("image_url") or _image_url(row),
+        # Photo-feedback counters (POST /api/feedback); absent attrs read as 0.
+        "feedback_up": int(row.get("feedback_up", 0)),
+        "feedback_down": int(row.get("feedback_down", 0)),
     }
 
 

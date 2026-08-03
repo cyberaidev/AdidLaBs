@@ -353,10 +353,34 @@ Resources:
       Timeout: 5
       Code:
         ZipFile: |
+          # Registration policy: business/third-party domains only. Consumer
+          # mailbox providers are rejected server-side (the SPA mirrors this
+          # client-side for friendlier copy, but this trigger is the enforcement).
+          CONSUMER_DOMAINS = {
+              "gmail.com", "googlemail.com", "yahoo.com", "yahoo.co.uk",
+              "yahoo.co.in", "yahoo.fr", "yahoo.de", "ymail.com",
+              "rocketmail.com", "hotmail.com", "hotmail.co.uk", "hotmail.fr",
+              "hotmail.it", "outlook.com", "outlook.jp", "live.com", "msn.com",
+              "icloud.com", "me.com", "mac.com", "aol.com", "proton.me",
+              "protonmail.com", "pm.me", "gmx.com", "gmx.net", "gmx.de",
+              "mail.com", "mail.ru", "yandex.com", "yandex.ru", "zoho.com",
+              "qq.com", "163.com", "126.com", "naver.com", "daum.net",
+              "rediffmail.com", "tutanota.com", "tuta.io", "hey.com",
+              "fastmail.com", "inbox.com", "libero.it", "web.de", "seznam.cz",
+              "wp.pl", "o2.pl", "laposte.net", "orange.fr", "free.fr",
+          }
+
           def handler(event, context):
+              email = (event["request"].get("userAttributes", {})
+                       .get("email", "")).strip().lower()
+              domain = email.rsplit("@", 1)[-1] if "@" in email else ""
+              if not domain or domain in CONSUMER_DOMAINS:
+                  raise Exception(
+                      "AdidLaBs registration requires a company or organization "
+                      "email address - consumer domains (gmail, yahoo, outlook, "
+                      "icloud, ...) are not accepted.")
               event["response"]["autoConfirmUser"] = True
-              if "email" in event["request"].get("userAttributes", {}):
-                  event["response"]["autoVerifyEmail"] = True
+              event["response"]["autoVerifyEmail"] = True
               return event
       Tags:
         - { Key: app, Value: adidlabs }
@@ -1330,6 +1354,87 @@ Resources:
                 }
       Tags:
         - { Key: app, Value: adidlabs }
+
+  FeedbackFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "adidlabs-api-feedback-${AWS::StackName}"
+      Description: POST /api/feedback — thumbs up/down counters on catalog product photos.
+      Role: !GetAtt FeedbackLambdaRole.Arn
+      Runtime: python3.12
+      Timeout: 10
+      MemorySize: !Ref LambdaMemoryMb
+      Handler: !If [UseApiS3Code, feedback.handler, index.handler]
+      Environment:
+        Variables:
+          CATALOG_TABLE: !Ref CatalogTable
+      Code: !If
+        - UseApiS3Code
+        - { S3Bucket: !Ref ArtifactsBucket, S3Key: !Ref ApiCodeS3Key }
+        - ZipFile: |
+            import json
+
+            def handler(event, context):
+                return {
+                    "statusCode": 503,
+                    "headers": {"Content-Type": "application/json",
+                                "Access-Control-Allow-Origin": "*"},
+                    "body": json.dumps({
+                        "error": "Inline bootstrap — deploy the backend package "
+                                 "(ArtifactsBucket/ApiCodeS3Key) for feedback."}),
+                }
+      Tags:
+        - { Key: app, Value: adidlabs }
+
+  FeedbackLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "adidlabs-feedback-role-${AWS::StackName}-${AWS::Region}"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: lambda.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+      Policies:
+        - PolicyName: vote-on-catalog-rows
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                # UpdateItem only — the handler's condition expression limits
+                # writes to the two counter attributes on existing rows.
+                Action: dynamodb:UpdateItem
+                Resource: !GetAtt CatalogTableResource.Arn
+      Tags:
+        - { Key: app, Value: adidlabs }
+
+  FeedbackIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref HttpApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !GetAtt FeedbackFunction.Arn
+      PayloadFormatVersion: "2.0"
+
+  # feedback — public like /api/catalog: the storefront is browsable without an
+  # account, and photo feedback must work for anonymous visitors too.
+  FeedbackRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: "POST /api/feedback"
+      Target: !Sub "integrations/${FeedbackIntegration}"
+
+  FeedbackInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref FeedbackFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*/*/api/feedback"
 
   TelemetryFunction:
     Type: AWS::Lambda::Function
