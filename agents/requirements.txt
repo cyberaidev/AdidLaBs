@@ -12,3 +12,9 @@ bedrock-agentcore>=0.1.0
 
 # --- dev / CI only (install with: pip install -r requirements-dev.txt) ------
 # pytest>=8.0  is declared in requirements-dev.txt to keep the runtime image lean.
+
+# OpenTelemetry (AgentCore observability): with this present the starter
+# toolkit wraps the entrypoint in ADOT auto-instrumentation, exporting the
+# mesh's component spans (tagged with the runtime session id) to CloudWatch
+# Transaction Search (aws/spans).
+aws-opentelemetry-distro>=0.11.0

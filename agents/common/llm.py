@@ -25,6 +25,11 @@ import urllib.request
 from dataclasses import dataclass, field
 from typing import Any
 
+try:  # dual-mode: package-relative for tests, top-level under the runtime
+    from .otel import component_span
+except ImportError:  # pragma: no cover - runtime layout
+    from otel import component_span
+
 # The two named LiteLLM routes. These are the ONLY strings agents may pass as a
 # model. They are route names, not Bedrock model ids - LiteLLM resolves them to
 # the APAC cross-region inference profiles.
@@ -181,8 +186,10 @@ class LLMClient:
             endpoint, data=data, headers=headers, method="POST"
         )
         try:
-            with urllib.request.urlopen(request, timeout=self.timeout) as resp:
-                body = resp.read().decode("utf-8")
+            with component_span("llm.chat", component="LITELLM", route=route,
+                                model=model):
+                with urllib.request.urlopen(request, timeout=self.timeout) as resp:
+                    body = resp.read().decode("utf-8")
         except urllib.error.HTTPError as exc:  # pragma: no cover - network path
             detail = exc.read().decode("utf-8", "replace") if exc.fp else str(exc)
             raise LLMError(

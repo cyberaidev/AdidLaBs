@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Drawer } from "./Drawer.jsx";
-import { getTerminal } from "../api.js";
+import { getTerminal, getTrace } from "../api.js";
 
 const POLL_MS = 5000;
 
@@ -19,6 +19,7 @@ function hhmmss(ts) {
 export function TerminalDrawer({ token, agent, onClose }) {
   const [events, setEvents] = useState(null); // null = loading
   const [logGroup, setLogGroup] = useState("");
+  const [trace, setTrace] = useState(null); // null = loading, {} shape after
   const bodyRef = useRef(null);
   const wid = agent?.wid || null;
 
@@ -37,6 +38,18 @@ export function TerminalDrawer({ token, agent, onClose }) {
       clearInterval(t);
     };
   }, [token, wid]);
+
+  // OTEL per-session breakdown — one fetch per drawer open (Logs Insights
+  // queries are not free; the refresh button re-runs it on demand).
+  useEffect(() => {
+    let alive = true;
+    getTrace(token).then((data) => {
+      if (alive) setTrace(data || {});
+    });
+    return () => {
+      alive = false;
+    };
+  }, [token]);
 
   useEffect(() => {
     if (bodyRef.current) bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
@@ -57,6 +70,52 @@ export function TerminalDrawer({ token, agent, onClose }) {
         >
           ×
         </button>
+      </div>
+
+      <div className="trace-panel">
+        <div className="trace-head">
+          <span>SESSION TRACE · OPENTELEMETRY</span>
+          <button
+            type="button"
+            className="trace-refresh"
+            onClick={() => {
+              setTrace(null);
+              getTrace(token).then((data) => setTrace(data || {}));
+            }}
+          >
+            ↻ REFRESH
+          </button>
+        </div>
+        {trace === null ? (
+          <p className="trace-dim">querying aws/spans (Logs Insights)…</p>
+        ) : !trace.components?.length ? (
+          <p className="trace-dim">
+            {trace.note ||
+              "No spans for this session yet — chat with the stylist, wait " +
+              "~1 min for span delivery, then refresh."}
+          </p>
+        ) : (
+          (() => {
+            const max = Math.max(...trace.components.map((c) => c.total_ms));
+            return trace.components.map((c) => (
+              <div className="trace-row" key={c.component}>
+                <span className="trace-name">{c.component}</span>
+                <span className="trace-bar-track">
+                  <span
+                    className="trace-bar"
+                    style={{ width: `${Math.max(3, (c.total_ms / max) * 100)}%` }}
+                  />
+                </span>
+                <span className="trace-meta">
+                  {c.calls}× · {c.total_ms >= 1000
+                    ? `${(c.total_ms / 1000).toFixed(2)}s`
+                    : `${Math.round(c.total_ms)}ms`}{" "}
+                  <i>avg {Math.round(c.avg_ms)}ms</i>
+                </span>
+              </div>
+            ));
+          })()
+        )}
       </div>
 
       <div className="drawer-body terminal-body" ref={bodyRef}>

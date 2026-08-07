@@ -36,6 +36,7 @@ from typing import Any, TypedDict
 try:
     from .common.a2a import STATUS_OK, make_task
     from .common.llm import LLMClient
+    from .common.otel import component_span
     from .common.roster import get_identity
     from .common.tools import ToolClient, default_tool_client
     from .shopping_agents import ShoppingAgent, build_shopping_agents
@@ -43,6 +44,7 @@ try:
 except ImportError:  # pragma: no cover - runtime layout
     from common.a2a import STATUS_OK, make_task
     from common.llm import LLMClient
+    from common.otel import component_span
     from common.roster import get_identity
     from common.tools import ToolClient, default_tool_client
     from shopping_agents import ShoppingAgent, build_shopping_agents
@@ -113,6 +115,11 @@ class Orchestrator:
 
     # -- graph nodes ---------------------------------------------------------
     def _node_weather_read(self, state: OrchestratorState) -> OrchestratorState:
+        with component_span("agent.weather", component="WEATHER",
+                            wid=self.weather.identity.wid):
+            return self._weather_read(state)
+
+    def _weather_read(self, state: OrchestratorState) -> OrchestratorState:
         conditions = self.weather.read(forecast=state.get("forecast"))
         cond = conditions.to_dict()
         # A shopper naming a condition ("any snow options?") outranks the live
@@ -165,7 +172,9 @@ class Orchestrator:
             )
             print(f"[a2a] {self.identity.wid} -> {agent.identity.wid} "
                   f"task={envelope.task_id} category={category}", flush=True)
-            result = agent.handle(envelope).to_dict()
+            with component_span(f"agent.{category}", component=category.upper(),
+                                wid=agent.identity.wid, task=envelope.task_id):
+                result = agent.handle(envelope).to_dict()
             print(f"[a2a] {agent.identity.wid} -> {self.identity.wid} "
                   f"status={result.get('status')} picks={len(result.get('picks', []))}",
                   flush=True)
@@ -182,9 +191,11 @@ class Orchestrator:
                 continue
             picks.extend(res.get("picks", []))
             citations.extend(res.get("citations", []))
-        reply = self._compose_reply(
-            conditions, results, state.get("user_message", "")
-        )
+        with component_span("agent.orchestrator.compose", component="ORCHESTRATOR",
+                            wid=self.identity.wid, picks=len(picks)):
+            reply = self._compose_reply(
+                conditions, results, state.get("user_message", "")
+            )
         return {"picks": picks, "citations": citations, "reply": reply}
 
     # -- composition helpers -------------------------------------------------

@@ -143,6 +143,12 @@ export function getTerminal(token, wid) {
   });
 }
 
+// Per-session OpenTelemetry component breakdown (JWT — session derived from
+// the caller's own token). Returns { session, components: [...] } or null.
+export function getTrace(token, minutes = 120) {
+  return request("GET", "/api/trace", { token, query: { minutes } });
+}
+
 // LiteLLM gateway telemetry: Bedrock token usage per model route (public).
 // Returns { window_hours, models, totals } or null.
 export function getTelemetry() {

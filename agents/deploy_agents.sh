@@ -71,17 +71,24 @@ echo "==> agentcore configure (${RUNTIME_NAME})"
 # direct_code_deploy pushes the Python code straight to the runtime — no
 # CodeBuild, no ECR, fewest IAM requirements. --non-interactive auto-creates
 # the execution role and staging bucket.
+# OTEL is ON (no --disable-otel): the toolkit wraps the entrypoint in ADOT
+# auto-instrumentation, so the component_span() calls in the mesh emit real
+# spans tagged with the runtimeSessionId -> per-session component breakdown
+# in CloudWatch GenAI Observability and the storefront's TRACE view.
 agentcore configure \
   --entrypoint entrypoint.py \
   --name "${RUNTIME_NAME}" \
   --requirements-file requirements.txt \
   --region "${REGION}" \
   --deployment-type direct_code_deploy \
-  --non-interactive \
-  --disable-otel
+  --non-interactive
 
 echo "==> agentcore launch"
 LAUNCH_ENVS=(
+  # parent-based always-on sampling: the X-Ray remote sampler would drop most
+  # of the mesh's component spans (they can root their own traces under the
+  # AgentCore SDK); demo traffic is tiny, so sample everything.
+  --env "OTEL_TRACES_SAMPLER=parentbased_always_on"
   --env "LITELLM_URL=${LITELLM_URL}"
   --env "KB_ID=${KB_ID}"
   --env "CATALOG_TABLE=${CATALOG_TABLE}"

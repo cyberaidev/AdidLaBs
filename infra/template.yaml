@@ -1640,6 +1640,93 @@ Resources:
       AuthorizationType: JWT
       AuthorizerId: !Ref JwtAuthorizer
 
+  # trace — per-session OpenTelemetry component breakdown (JWT: the session id
+  # is derived from the caller's own token, so users only see their session).
+  TraceFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "adidlabs-api-trace-${AWS::StackName}"
+      Description: GET /api/trace — per-session OTEL component breakdown from aws/spans.
+      Role: !GetAtt TraceLambdaRole.Arn
+      Runtime: python3.12
+      Timeout: 15
+      MemorySize: !Ref LambdaMemoryMb
+      Handler: !If [UseApiS3Code, trace.handler, index.handler]
+      Code: !If
+        - UseApiS3Code
+        - { S3Bucket: !Ref ArtifactsBucket, S3Key: !Ref ApiCodeS3Key }
+        - ZipFile: |
+            import json
+
+            def handler(event, context):
+                return {
+                    "statusCode": 200,
+                    "headers": {"Content-Type": "application/json",
+                                "Access-Control-Allow-Origin": "*"},
+                    "body": json.dumps({
+                        "components": [], "spans_scanned": 0,
+                        "note": "Inline bootstrap — deploy the backend package "
+                                "(ArtifactsBucket/ApiCodeS3Key) for traces."}),
+                }
+      Tags:
+        - { Key: app, Value: adidlabs }
+
+  TraceLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "adidlabs-trace-role-${AWS::StackName}-${AWS::Region}"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: lambda.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+      Policies:
+        - PolicyName: read-mesh-span-log-lines
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:DescribeLogGroups
+                Resource: !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:*"
+              - Effect: Allow
+                Action:
+                  - logs:FilterLogEvents
+                  - logs:GetLogEvents
+                Resource:
+                  - !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/bedrock-agentcore/runtimes/*"
+                  - !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/bedrock-agentcore/runtimes/*:*"
+      Tags:
+        - { Key: app, Value: adidlabs }
+
+  TraceIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref HttpApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !GetAtt TraceFunction.Arn
+      PayloadFormatVersion: "2.0"
+
+  TraceRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: "GET /api/trace"
+      Target: !Sub "integrations/${TraceIntegration}"
+      AuthorizationType: JWT
+      AuthorizerId: !Ref JwtAuthorizer
+
+  TraceInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref TraceFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*/*/api/trace"
+
   # --- Stage (auto-deploy) ---------------------------------------------------
   DefaultStage:
     Type: AWS::ApiGatewayV2::Stage

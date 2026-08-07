@@ -41,10 +41,12 @@ from typing import Any, Callable
 # with no parent package (direct code deploy zips the agents/ dir contents at root).
 try:
     from .common.llm import LLMClient
+    from .common.otel import flush_spans, set_session
     from .common.tools import default_tool_client
     from .orchestrator import Orchestrator, build_orchestrator
 except ImportError:  # pragma: no cover - runtime layout
     from common.llm import LLMClient
+    from common.otel import flush_spans, set_session
     from common.tools import default_tool_client
     from orchestrator import Orchestrator, build_orchestrator
 
@@ -79,6 +81,10 @@ def handle(payload: dict[str, Any]) -> dict[str, Any]:
         }
     forecast = payload.get("forecast") or {}
     user_id = str(payload.get("user_id") or "demo-user")
+    # The chat Lambda uses the Cognito sub as both user_id and the
+    # runtimeSessionId — stamping it on the mesh spans gives /api/trace a
+    # per-session filter key.
+    set_session(user_id)
     state = ORCHESTRATOR.run(message, forecast=forecast, user_id=user_id)
     return {
         "reply": state.get("reply", ""),
@@ -102,7 +108,13 @@ def _build_app() -> Any:
     @app.entrypoint
     def invoke(payload: dict[str, Any]) -> dict[str, Any]:  # noqa: D401
         """AgentCore entrypoint - one stylist turn."""
-        return handle(payload)
+        try:
+            return handle(payload)
+        finally:
+            # AgentCore freezes the microVM as soon as the response returns;
+            # flush buffered OTEL spans NOW or the request's component spans
+            # never leave the batch processor.
+            flush_spans()
 
     return app
 
