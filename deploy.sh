@@ -220,6 +220,10 @@ deploy_cfn() {
   log "Backend package uploaded → s3://$cfn_bucket/$api_key"
   param_overrides+=( "ArtifactsBucket=$cfn_bucket" "ApiCodeS3Key=$api_key" )
 
+  # Stack tags propagate to every taggable resource. NOTE: a tag change
+  # forces a config update on all of them — the CloudFront distribution
+  # takes ~6 minutes to redeploy and can transiently serve 403s meanwhile,
+  # so avoid tag-only updates during demo windows.
   aws cloudformation deploy \
     --region "$REGION" \
     --stack-name "$STACK_NAME" \
@@ -228,6 +232,7 @@ deploy_cfn() {
     --s3-prefix cfn-templates \
     --capabilities CAPABILITY_NAMED_IAM \
     --no-fail-on-empty-changeset \
+    --tags "Project=adidlabs" \
     --parameter-overrides "${param_overrides[@]}"
 
   ok "CloudFormation stack '$STACK_NAME' deployed."
