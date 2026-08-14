@@ -63,6 +63,19 @@ Description: >-
 # Parameters
 # -----------------------------------------------------------------------------
 Parameters:
+  SiteCustomDomain:
+    Type: String
+    Default: ""
+    Description: >-
+      Optional custom domain served by the CloudFront distribution
+      (e.g. www.adidlabs.com). Requires SiteCertificateArn. DNS at the
+      registrar must CNAME this name to the distribution domain.
+  SiteCertificateArn:
+    Type: String
+    Default: ""
+    Description: >-
+      us-east-1 ACM certificate ARN covering SiteCustomDomain (CloudFront
+      only accepts certificates from us-east-1).
   DemoMode:
     Type: String
     Default: "true"
@@ -170,6 +183,10 @@ Parameters:
 # Conditions
 # -----------------------------------------------------------------------------
 Conditions:
+  # Custom domain is attached only when both the name and its cert are set.
+  HaveCustomDomain: !And
+    - !Not [!Equals [!Ref SiteCustomDomain, ""]]
+    - !Not [!Equals [!Ref SiteCertificateArn, ""]]
   # A function uses S3 code when both the artifacts bucket and its key are set.
   UseApiS3Code: !And
     - !Not [!Equals [!Ref ArtifactsBucket, ""]]
@@ -295,6 +312,19 @@ Resources:
         Enabled: true
         Comment: AdidLaBs static site (concept demo, no adidas affiliation).
         DefaultRootObject: index.html
+        # Custom domain: without an alias CloudFront rejects requests whose
+        # Host header names the domain (403 "request could not be satisfied"),
+        # even when DNS points here.
+        Aliases: !If
+          - HaveCustomDomain
+          - [!Ref SiteCustomDomain]
+          - !Ref "AWS::NoValue"
+        ViewerCertificate: !If
+          - HaveCustomDomain
+          - AcmCertificateArn: !Ref SiteCertificateArn
+            SslSupportMethod: sni-only
+            MinimumProtocolVersion: TLSv1.2_2021
+          - !Ref "AWS::NoValue"
         # SPA: route 403/404 back to index.html so client-side state works.
         CustomErrorResponses:
           - { ErrorCode: 403, ResponseCode: 200, ResponsePagePath: /index.html, ErrorCachingMinTTL: 10 }
