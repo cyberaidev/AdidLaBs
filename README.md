@@ -25,6 +25,8 @@ chat. It is an end-to-end reference for an agentic retail experience engineered 
 hard constraint: **near-zero cost when idle** — no OpenSearch, no Fargate, no always-on compute.
 Every component is static content, a request-scoped serverless function, or an on-demand store.
 
+<img width="739" height="933" alt="image" src="https://github.com/user-attachments/assets/9ef506a4-2643-4da1-9538-fcba0e5b2731" />
+
 ## Architecture
 
 A React SPA on CloudFront/S3 talks to an API Gateway HTTP API backed by a Python 3.12
@@ -34,6 +36,9 @@ foundation models **only through LiteLLM routes** (`nova-pro`, `haiku-4.5`) mapp
 cross-region inference profiles, and reach data + knowledge through **MCP tools** on the AgentCore
 Gateway (DynamoDB catalog/bag, a Bedrock Knowledge Base over Amazon S3 Vectors, and a free web
 fallback). Everything lives in **`ap-southeast-2` (Sydney)**.
+
+<img width="761" height="514" alt="image" src="https://github.com/user-attachments/assets/1c35baf8-1582-4b16-b5a1-a1e502440b82" />
+
 
 - **[`docs/architecture.md`](docs/architecture.md)** — full request stack, agent mesh, RAG design, IAM posture, deploy/teardown, with Mermaid diagrams.
 - **[`docs/design.md`](docs/design.md)** — brand + UI specification (v3 mockup): wordmark, tokens, components, copy deck, state/flow.
