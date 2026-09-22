@@ -37,7 +37,8 @@ cross-region inference profiles, and reach data + knowledge through **MCP tools*
 Gateway (DynamoDB catalog/bag, a Bedrock Knowledge Base over Amazon S3 Vectors, and a free web
 fallback). Everything lives in **`ap-southeast-2` (Sydney)**.
 
-<img width="761" height="514" alt="image" src="https://github.com/user-attachments/assets/1c35baf8-1582-4b16-b5a1-a1e502440b82" />
+<img width="1462" height="745" alt="image" src="https://github.com/user-attachments/assets/3a0859cf-6208-4aa2-ab89-f39347760627" />
+
 
 
 - **[`docs/architecture.md`](docs/architecture.md)** — full request stack, agent mesh, RAG design, IAM posture, deploy/teardown, with Mermaid diagrams.
