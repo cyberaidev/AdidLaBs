@@ -25,7 +25,8 @@ chat. It is an end-to-end reference for an agentic retail experience engineered 
 hard constraint: **near-zero cost when idle** — no OpenSearch, no Fargate, no always-on compute.
 Every component is static content, a request-scoped serverless function, or an on-demand store.
 
-<img width="739" height="933" alt="image" src="https://github.com/user-attachments/assets/9ef506a4-2643-4da1-9538-fcba0e5b2731" />
+<img width="1151" height="916" alt="image" src="https://github.com/user-attachments/assets/1f99def0-dd91-4677-9bac-798ba5f77988" />
+
 
 ## Architecture
 
